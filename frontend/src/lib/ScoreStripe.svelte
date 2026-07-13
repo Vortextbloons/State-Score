@@ -1,0 +1,1 @@
+<script lang="ts">let {scores=[]}:{scores:(number|null)[]}=$props();</script><div class="stripe" aria-label="Category score stripe">{#each scores as score,i}<span class:c0={i===0&&score!=null} class:c1={i===1&&score!=null} class:c2={i===2&&score!=null} class:c3={i===3&&score!=null} class:c4={i===4&&score!=null} style:opacity={score==null?.18:.35+score/155}></span>{/each}</div>

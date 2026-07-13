@@ -27,7 +27,7 @@ func (r *DataSourceRepository) List() ([]models.DataSource, error) {
 	}
 	defer rows.Close()
 
-	var sources []models.DataSource
+	sources := make([]models.DataSource, 0)
 	for rows.Next() {
 		var s models.DataSource
 		if err := rows.Scan(&s.ID, &s.Name, &s.Publisher, &s.SourceURL, &s.License, &s.Format, &s.Description, &s.CreatedAt, &s.UpdatedAt); err != nil {

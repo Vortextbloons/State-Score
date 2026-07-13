@@ -35,7 +35,7 @@ func (r *MetricValueRepository) ListByState(stateID int64, year int) ([]models.M
 	}
 	defer rows.Close()
 
-	var values []models.MetricValue
+	values := make([]models.MetricValue, 0)
 	for rows.Next() {
 		var mv models.MetricValue
 		var importID sql.NullInt64
@@ -68,7 +68,7 @@ func (r *MetricValueRepository) ListByMetric(metricID int64, year int) ([]models
 	}
 	defer rows.Close()
 
-	var values []models.MetricValue
+	values := make([]models.MetricValue, 0)
 	for rows.Next() {
 		var mv models.MetricValue
 		var importID sql.NullInt64

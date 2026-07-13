@@ -1,2 +1,2 @@
-export { api, getStatus } from './client';
-export { ApiError, type AppStatus } from './types';
+export * from './client';
+export * from './types';

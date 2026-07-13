@@ -30,7 +30,7 @@ func (r *ImportRepository) List(limit int) ([]models.Import, error) {
 	}
 	defer rows.Close()
 
-	var imports []models.Import
+	imports := make([]models.Import, 0)
 	for rows.Next() {
 		var i models.Import
 		var sourceID sql.NullInt64
@@ -105,7 +105,7 @@ func (r *ImportRepository) ListErrors(importID int64) ([]models.ImportError, err
 	}
 	defer rows.Close()
 
-	var errors []models.ImportError
+	errors := make([]models.ImportError, 0)
 	for rows.Next() {
 		var e models.ImportError
 		var rowNumber sql.NullInt64

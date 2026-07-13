@@ -1,19 +1,11 @@
-/** Shared API types for the local Go server. */
-
-export type AppStatus = {
-	status: string;
-	version: string;
-	databaseReady: boolean;
-	activeImports: number;
-	startedAt?: string;
-};
-
-export class ApiError extends Error {
-	status: number;
-
-	constructor(status: number, message: string) {
-		super(message);
-		this.name = 'ApiError';
-		this.status = status;
-	}
-}
+export type AppStatus={status:string;version:string;databaseReady:boolean;activeImports:number;startedAt?:string};
+export type State={id:number;code:string;name:string;region?:string;division?:string};
+export type Category={id:number;slug:string;name:string;description?:string;defaultWeight:number;displayOrder:number};
+export type Metric={id:number;categoryId:number;slug:string;name:string;description?:string;unit?:string;higherIsBetter:boolean;normalizationMethod:string;defaultWeight:number};
+export type MetricValue={id:number;stateId:number;metricId:number;year:number;value:number};
+export type Profile={id:number;name:string;description?:string;isDefault:boolean;isSystem:boolean};
+export type CategoryWeight={profileId:number;categoryId:number;weight:number};
+export type DataSource={id:number;name:string;publisher?:string;sourceUrl?:string;license?:string;format:string;description?:string;createdAt?:string;updatedAt?:string};
+export type DataImport={id:number;sourceId?:number;status:string;startedAt?:string;completedAt?:string;recordsRead:number;recordsInserted:number;recordsRejected:number;checksum?:string;errorSummary?:string};
+export type ImportIssue={id:number;importId:number;rowNumber?:number;fieldName?:string;rawValue?:string;errorMessage:string};
+export class ApiError extends Error{status:number;constructor(status:number,message:string){super(message);this.name='ApiError';this.status=status}}

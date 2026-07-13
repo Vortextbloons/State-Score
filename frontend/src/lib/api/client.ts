@@ -1,35 +1,6 @@
-import { ApiError, type AppStatus } from './types';
-
-const API_BASE = '/api/v1';
-
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-	const response = await fetch(`${API_BASE}${path}`, {
-		...init,
-		headers: {
-			Accept: 'application/json',
-			...(init?.headers ?? {})
-		}
-	});
-
-	if (!response.ok) {
-		let message = response.statusText || 'Request failed';
-		try {
-			const body = (await response.json()) as { error?: string; message?: string };
-			message = body.error ?? body.message ?? message;
-		} catch {
-			// keep statusText
-		}
-		throw new ApiError(response.status, message);
-	}
-
-	return (await response.json()) as T;
-}
-
-/** GET /api/v1/status — application readiness. */
-export function getStatus(): Promise<AppStatus> {
-	return request<AppStatus>('/status');
-}
-
-export const api = {
-	getStatus
-};
+import {ApiError,type AppStatus,type State,type Category,type Metric,type MetricValue,type Profile,type CategoryWeight,type DataSource,type DataImport,type ImportIssue} from './types';
+const BASE='/api/v1';async function request<T>(path:string,init?:RequestInit):Promise<T>{const multipart=init?.body instanceof FormData;const r=await fetch(BASE+path,{...init,headers:{Accept:'application/json',...(!multipart?{'Content-Type':'application/json'}:{}),...(init?.headers??{})}});if(!r.ok){let m=r.statusText;try{const b=await r.json();m=b.error?.message??m}catch{}throw new ApiError(r.status,m)}return r.json()}
+async function data<T>(path:string,init?:RequestInit):Promise<T>{return (await request<{data:T}>(path,init)).data}
+export const getStatus=()=>request<AppStatus>('/status');export const getStates=(region='')=>data<State[]>('/states'+(region?`?region=${encodeURIComponent(region)}`:''));export const getState=(code:string)=>data<State>('/states/'+code);export const getCategories=()=>data<Category[]>('/categories');export const getMetrics=()=>data<Metric[]>('/metrics');export const getValues=(stateId:number)=>data<MetricValue[]>(`/values?state_id=${stateId}`);export const getProfiles=()=>data<Profile[]>('/profiles');export const getDefaultProfile=()=>data<{profile:Profile;categoryWeights:CategoryWeight[]}>('/profiles/default');
+export const getSources=()=>data<DataSource[]>('/sources');export const saveSource=(source:Partial<DataSource>)=>data<DataSource>(source.id?`/sources/${source.id}`:'/sources',{method:source.id?'PUT':'POST',body:JSON.stringify(source)});export const getImports=()=>data<DataImport[]>('/imports');export const getImport=(id:number)=>data<{import:DataImport;errors:ImportIssue[]}>(`/imports/${id}`);export const uploadCSV=(sourceId:number,file:File)=>{const body=new FormData();body.set('source_id',String(sourceId));body.set('file',file);return data<DataImport>('/imports',{method:'POST',body})};export const recalculate=(profileId=0,year=0)=>data<{profileId:number;year:number;statesCalculated:number}>('/scores/recalculate',{method:'POST',body:JSON.stringify({profileId,year})});
+export const api={getStatus,getStates,getState,getCategories,getMetrics,getValues,getProfiles,getDefaultProfile,getSources,saveSource,getImports,getImport,uploadCSV,recalculate};

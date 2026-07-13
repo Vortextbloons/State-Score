@@ -4,9 +4,8 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev",
-		"dev:backend": "cd .. && cross-env STATESCORE_PORT=8080 STATESCORE_NO_BROWSER=1 go run ./cmd/statescore",
-		"dev:all": "concurrently -n fe,be -c blue,green \"npm run dev\" \"npm run dev:backend\"",
+		"dev": "concurrently -n fe,be -c blue,green \"vite dev\" \"cd .. && cross-env STATESCORE_PORT=8080 STATESCORE_NO_BROWSER=1 air\"",
+		"dev:backend": "cd .. && cross-env STATESCORE_PORT=8080 STATESCORE_NO_BROWSER=1 air",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
