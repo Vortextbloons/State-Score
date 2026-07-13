@@ -1,3 +1,3 @@
-// Static SPA build served by the Go binary. Client-side routing with fallback.
-export const prerender = true;
+// Static SPA build served by the Go binary.
 export const ssr = false;
+export const prerender = true;

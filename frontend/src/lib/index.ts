@@ -1,1 +1,2 @@
-// place files you want to import through the `$lib` alias in this folder.
+export { api, getStatus } from './api';
+export { ApiError, type AppStatus } from './api';

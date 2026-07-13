@@ -1,0 +1,38 @@
+:root {
+	color-scheme: dark;
+	--ink: #e8eef4;
+	--muted: #8b9aab;
+	--paper: #0d1218;
+	--accent: #3dba8c;
+	--line: #2a3542;
+	--panel: #141b24;
+	--danger: #e07a6a;
+	--ok: #3dba8c;
+	--font-display: "Segoe UI", "Helvetica Neue", sans-serif;
+	--font-body: "Segoe UI", "Helvetica Neue", sans-serif;
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	min-height: 100%;
+}
+
+body {
+	font-family: var(--font-body);
+	color: var(--ink);
+	background:
+		radial-gradient(ellipse 80% 50% at 10% 0%, #143028 0%, transparent 55%),
+		radial-gradient(ellipse 60% 40% at 100% 100%, #1a2230 0%, transparent 50%),
+		var(--paper);
+}
+
+a {
+	color: var(--accent);
+}

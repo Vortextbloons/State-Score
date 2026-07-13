@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 )
 
 const (
@@ -16,14 +17,15 @@ const (
 
 // Config holds runtime configuration for the local application.
 type Config struct {
-	Host       string
-	Port       int
-	DataDir    string
+	Host         string
+	Port         int
+	DataDir      string
 	DatabasePath string
-	OpenBrowser bool
+	OpenBrowser  bool
 }
 
 // Load returns the default configuration and ensures the data directory exists.
+// STATESCORE_PORT overrides the listen port (used for dual-server frontend development).
 func Load() (*Config, error) {
 	dataDir, err := DataDir()
 	if err != nil {
@@ -33,12 +35,26 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("create data directory: %w", err)
 	}
 
+	port := DefaultPort
+	if raw := os.Getenv("STATESCORE_PORT"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 || parsed > 65535 {
+			return nil, fmt.Errorf("invalid STATESCORE_PORT %q", raw)
+		}
+		port = parsed
+	}
+
+	openBrowser := true
+	if os.Getenv("STATESCORE_NO_BROWSER") == "1" {
+		openBrowser = false
+	}
+
 	return &Config{
 		Host:         DefaultHost,
-		Port:         DefaultPort,
+		Port:         port,
 		DataDir:      dataDir,
 		DatabasePath: filepath.Join(dataDir, "statescore.db"),
-		OpenBrowser:  true,
+		OpenBrowser:  openBrowser,
 	}, nil
 }
 

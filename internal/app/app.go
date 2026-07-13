@@ -15,9 +15,11 @@ import (
 	"github.com/isaac/statescore/internal/config"
 	"github.com/isaac/statescore/internal/database"
 	"github.com/isaac/statescore/internal/shutdown"
+	"github.com/isaac/statescore/internal/webui"
+	"github.com/isaac/statescore/web"
 )
 
-// Run starts the StateScore application shell.
+// Run starts the StateScore application.
 func Run() error {
 	cfg, err := config.Load()
 	if err != nil {
@@ -46,8 +48,19 @@ func Run() error {
 		return err
 	}
 
+	ui, err := webui.New(web.Dist)
+	if err != nil {
+		return fmt.Errorf("load frontend assets: %w", err)
+	}
+	if !ui.HasAssets() {
+		slog.Warn("embedded frontend missing; build frontend before go build",
+			"event", "frontend_missing",
+		)
+	}
+
 	mux := http.NewServeMux()
-	api.NewHandler().Mount(mux)
+	api.NewHandler(db).Mount(mux)
+	mux.Handle("/", ui)
 
 	ln, addr, err := listenLocal(cfg.Host, cfg.Port)
 	if err != nil {
@@ -68,6 +81,7 @@ func Run() error {
 			"event", "server_started",
 			"address", addr,
 			"version", config.Version,
+			"frontend", ui.HasAssets(),
 		)
 		fmt.Printf("\nStateScore is running.\n\nOpen: http://%s\nData: %s\n\nPress Ctrl+C to stop.\n\n", addr, cfg.DatabasePath)
 		errCh <- server.Serve(ln)

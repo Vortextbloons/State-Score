@@ -1,19 +1,20 @@
 # Dependencies
 frontend/node_modules/
 .opencode/node_modules/
+node_modules/
 
 # Build outputs
 frontend/.svelte-kit/
 frontend/build/
 web/dist/*
 !web/dist/.gitkeep
-
-# Go
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
+
+# Go
 *.test
 *.out
 statescore
@@ -31,6 +32,8 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+.vscode/
+*.code-workspace
 
 # Env
 .env
@@ -40,6 +43,12 @@ Thumbs.db
 # Logs / coverage
 *.log
 coverage/
+
+# AI / Editor configs
 .opencode/
 opencode.json
 .agents/
+.codex/
+.cursor/
+.windsurf/
+.claude/

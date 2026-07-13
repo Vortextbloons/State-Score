@@ -14,7 +14,7 @@ export default defineConfig({
 			adapter: adapter({
 				pages: '../web/dist',
 				assets: '../web/dist',
-				fallback: 'index.html',
+				fallback: '200.html',
 				precompress: false,
 				strict: true
 			})
