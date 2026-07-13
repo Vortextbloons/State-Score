@@ -1,0 +1,45 @@
+# Dependencies
+frontend/node_modules/
+.opencode/node_modules/
+
+# Build outputs
+frontend/.svelte-kit/
+frontend/build/
+web/dist/*
+!web/dist/.gitkeep
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+statescore
+bin/
+
+# Local data
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.swo
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Logs / coverage
+*.log
+coverage/
+.opencode/
+opencode.json
+.agents/

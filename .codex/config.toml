@@ -1,0 +1,7 @@
+#:schema https://developers.openai.com/codex/config-schema.json
+
+experimental_use_rmcp_client = true
+
+[mcp_servers.svelte]
+url = "https://mcp.svelte.dev/mcp"
+enabled = true
