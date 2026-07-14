@@ -1,5 +1,110 @@
-import {getCategories,getMetrics,getStates,getValues,type Category,type Metric,type MetricValue,type State} from '$lib/api';
-export type Row={state:State;overall:number|null;categories:Record<number,number|null>;completeness:number;values:MetricValue[]};
-export type ScoreData={states:State[];categories:Category[];metrics:Metric[];rows:Row[];years:number[]};
-export async function loadScores(weights?:Record<number,number>,year?:number):Promise<ScoreData>{const [states,categories,metrics]=await Promise.all([getStates(),getCategories(),getMetrics()]);const all=await Promise.all(states.map(s=>getValues(s.id).then(values=>values??[]).catch(()=>[])));const everyValue=all.flat().filter(Boolean);const years=[...new Set(everyValue.map(v=>v.year))].sort((a,b)=>b-a);const chosen=year??years[0];const metricYears=new Map<number,number>();for(const m of metrics){const available=[...new Set(everyValue.filter(v=>v.metricId===m.id&&(!chosen||v.year<=chosen)).map(v=>v.year))].sort((a,b)=>b-a);if(available[0])metricYears.set(m.id,available[0])}const normalized=new Map<string,number>();for(const m of metrics){const metricYear=metricYears.get(m.id);const vals=everyValue.filter(v=>v.metricId===m.id&&v.year===metricYear);const sorted=[...vals].sort((a,b)=>a.value-b.value);for(const v of vals){const peers=sorted.filter(x=>x.value===v.value);const ranks=peers.map(x=>sorted.indexOf(x));let score=sorted.length===1?50:(ranks.reduce((a,b)=>a+b,0)/ranks.length)/(sorted.length-1)*100;if(!m.higherIsBetter)score=100-score;normalized.set(`${v.stateId}:${m.id}`,score)}}const rows=states.map((state,i)=>{const cs:Record<number,number|null>={};let present=0;for(const c of categories){const ms=metrics.filter(m=>m.categoryId===c.id),scored=ms.filter(m=>normalized.has(`${state.id}:${m.id}`));const total=scored.reduce((n,m)=>n+m.defaultWeight,0);cs[c.id]=total?scored.reduce((n,m)=>n+(normalized.get(`${state.id}:${m.id}`)??0)*m.defaultWeight,0)/total:null;present+=scored.length}const available=categories.filter(c=>cs[c.id]!=null);const totalW=available.reduce((n,c)=>n+(weights?.[c.id]??c.defaultWeight),0);const overall=totalW?available.reduce((n,c)=>n+(cs[c.id]??0)*(weights?.[c.id]??c.defaultWeight),0)/totalW:null;return{state,overall,categories:cs,completeness:metrics.length?present/metrics.length:0,values:(all[i]??[]).filter(v=>v.year===metricYears.get(v.metricId))}});rows.sort((a,b)=>(b.overall??-1)-(a.overall??-1));return{states,categories,metrics,rows,years}}
-export function fmt(v:number|null,digits=1){return v==null?'—':v.toFixed(digits)}
+import {
+	getCategories,
+	getMetrics,
+	getScores,
+	getStates,
+	getValues,
+	type Category,
+	type Metric,
+	type MetricValue,
+	type Scoreboard,
+	type State
+} from '$lib/api';
+
+export type Row = {
+	state: State;
+	overall: number | null;
+	categories: Record<number, number | null>;
+	completeness: number;
+	values: MetricValue[];
+};
+
+export type ScoreData = {
+	states: State[];
+	categories: Category[];
+	metrics: Metric[];
+	rows: Row[];
+	years: number[];
+	asOfYear: number | null;
+	calculationVersion: string | null;
+	relative: true;
+};
+
+/** Load rankings from backend snapshots. Optional weights only re-average category scores. */
+export async function loadScores(
+	weights?: Record<number, number>,
+	year?: number
+): Promise<ScoreData> {
+	const [states, allCategories, metrics] = await Promise.all([
+		getStates(),
+		getCategories(),
+		getMetrics()
+	]);
+	const categories = allCategories.filter((c) => metrics.some((m) => m.categoryId === c.id));
+	const everyValue = await getValues();
+	const years = [...new Set(everyValue.map((v) => v.year))].sort((a, b) => b - a);
+
+	let board: Scoreboard | null = null;
+	try {
+		board = await getScores(0, year ?? 0);
+	} catch {
+		board = null;
+	}
+
+	const asOfYear = board?.asOfYear ?? year ?? years[0] ?? null;
+	const metricYears = new Map<number, number>();
+	for (const m of metrics) {
+		const available = [
+			...new Set(
+				everyValue
+					.filter((v) => v.metricId === m.id && (asOfYear == null || v.year <= asOfYear))
+					.map((v) => v.year)
+			)
+		].sort((a, b) => b - a);
+		if (available[0]) metricYears.set(m.id, available[0]);
+	}
+
+	const byState = new Map(board?.scores.map((s) => [s.stateId, s]) ?? []);
+	const rows: Row[] = states.map((state) => {
+		const snap = byState.get(state.id);
+		const cs: Record<number, number | null> = {};
+		for (const c of categories) {
+			const found = snap?.categories.find((x) => x.categoryId === c.id);
+			cs[c.id] = found ? found.score : null;
+		}
+		let overall = snap?.overallScore ?? null;
+		if (weights && overall != null) {
+			const available = categories.filter((c) => cs[c.id] != null);
+			const totalW = available.reduce((n, c) => n + (weights[c.id] ?? c.defaultWeight), 0);
+			overall = totalW
+				? available.reduce((n, c) => n + (cs[c.id] ?? 0) * (weights[c.id] ?? c.defaultWeight), 0) /
+					totalW
+				: null;
+		}
+		return {
+			state,
+			overall,
+			categories: cs,
+			completeness: snap?.completeness ?? 0,
+			values: everyValue.filter(
+				(v) => v.stateId === state.id && v.year === metricYears.get(v.metricId)
+			)
+		};
+	});
+	rows.sort((a, b) => (b.overall ?? -1) - (a.overall ?? -1));
+
+	return {
+		states,
+		categories,
+		metrics,
+		rows,
+		years,
+		asOfYear,
+		calculationVersion: board?.calculationVersion ?? null,
+		relative: true
+	};
+}
+
+export function fmt(v: number | null, digits = 1) {
+	return v == null ? '—' : v.toFixed(digits);
+}

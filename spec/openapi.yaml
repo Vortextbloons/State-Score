@@ -1,0 +1,93 @@
+openapi: 3.1.0
+info:
+  title: StateScore API
+  version: 1.0.0
+servers:
+  - url: /api/v1
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        '200':
+          description: Process health
+  /status:
+    get:
+      operationId: getStatus
+      responses:
+        '200':
+          description: Application readiness and active work
+  /states:
+    get:
+      operationId: listStates
+      parameters:
+        - { name: region, in: query, schema: { type: string } }
+      responses:
+        '200': { description: State collection }
+  /categories:
+    get:
+      operationId: listCategories
+      responses:
+        '200': { description: Category collection }
+  /metrics:
+    get:
+      operationId: listMetrics
+      parameters:
+        - { name: category_id, in: query, schema: { type: integer, format: int64 } }
+      responses:
+        '200': { description: Metric collection }
+  /values:
+    get:
+      operationId: listMetricValues
+      description: Returns all values when state_id is omitted, enabling bulk ranking loads.
+      parameters:
+        - { name: state_id, in: query, schema: { type: integer, format: int64 } }
+        - { name: year, in: query, schema: { type: integer } }
+      responses:
+        '200': { description: Metric-value collection }
+  /profiles:
+    get:
+      operationId: listProfiles
+      responses:
+        '200': { description: Scoring profiles }
+  /sources:
+    get:
+      operationId: listSources
+      responses:
+        '200': { description: Data sources }
+    post:
+      operationId: createSource
+      responses:
+        '201': { description: Source created }
+  /imports:
+    get:
+      operationId: listImports
+      responses:
+        '200': { description: Import history }
+    post:
+      operationId: createImport
+      responses:
+        '202': { description: Import accepted }
+  /scores:
+    get:
+      operationId: listScores
+      responses:
+        '200': { description: Scoreboard snapshot }
+components:
+  schemas:
+    Envelope:
+      type: object
+      required: [data]
+      properties:
+        data: {}
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: object }

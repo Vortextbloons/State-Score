@@ -14,6 +14,8 @@ import (
 	"github.com/isaac/statescore/internal/browser"
 	"github.com/isaac/statescore/internal/config"
 	"github.com/isaac/statescore/internal/database"
+	"github.com/isaac/statescore/internal/jobs"
+	"github.com/isaac/statescore/internal/scoring"
 	"github.com/isaac/statescore/internal/shutdown"
 	"github.com/isaac/statescore/internal/webui"
 	"github.com/isaac/statescore/web"
@@ -47,6 +49,9 @@ func Run() error {
 	if err := database.Migrate(db); err != nil {
 		return err
 	}
+	if err := scoring.EnsureLatest(context.Background(), db); err != nil {
+		slog.Warn("score snapshot refresh failed", "event", "score_ensure_failed", "err", err)
+	}
 
 	ui, err := webui.New(web.Dist)
 	if err != nil {
@@ -58,8 +63,12 @@ func Run() error {
 		)
 	}
 
+	ctx, stop := shutdown.Context()
+	defer stop()
+	jobManager := jobs.New(ctx)
+
 	mux := http.NewServeMux()
-	api.NewHandler(db).Mount(mux)
+	api.NewHandler(db, jobManager).Mount(mux)
 	mux.Handle("/", ui)
 
 	ln, addr, err := listenLocal(cfg.Host, cfg.Port)
@@ -71,9 +80,6 @@ func Run() error {
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-
-	ctx, stop := shutdown.Context()
-	defer stop()
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -110,6 +116,9 @@ func Run() error {
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("server shutdown: %w", err)
+	}
+	if err := jobManager.Shutdown(shutdownCtx); err != nil {
+		slog.Warn("background jobs did not stop cleanly", "event", "jobs_shutdown_error", "err", err)
 	}
 
 	if err := <-errCh; err != nil && !errors.Is(err, http.ErrServerClosed) {

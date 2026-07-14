@@ -50,5 +50,5 @@ opencode.json
 .agents/
 .codex/
 .cursor/
-.windsurf/
-.claude/
+AGENTS.md
+docs/all.md

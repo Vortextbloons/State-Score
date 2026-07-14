@@ -4,13 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
+
 	"github.com/isaac/statescore/internal/models"
 	"github.com/isaac/statescore/internal/repositories"
-	"time"
 )
 
-// Recalculate creates canonical snapshots for every state for a profile/year.
-func Recalculate(ctx context.Context, db *sql.DB, profileID int64, year int) (int, error) {
+// Recalculate creates canonical snapshots for every state for a profile / as-of year.
+// For each active metric it uses the latest completed import value with year ≤ asOfYear,
+// so staggered release calendars still produce one coherent composite.
+func Recalculate(ctx context.Context, db *sql.DB, profileID int64, asOfYear int) (int, error) {
 	states, err := repositories.NewStateRepository(db).List("")
 	if err != nil {
 		return 0, err
@@ -40,32 +43,14 @@ func Recalculate(ctx context.Context, db *sql.DB, profileID int64, year int) (in
 	for _, w := range mw {
 		metricWeight[w.MetricID] = w.Weight
 	}
-	categoryInputs := make([]CategoryInput, 0, len(categories))
-	for _, c := range categories {
-		w := c.DefaultWeight
-		if v, ok := categoryWeight[c.ID]; ok {
-			w = v
-		}
-		categoryInputs = append(categoryInputs, CategoryInput{c.ID, w})
-	}
+
 	metricInputs := make([]MetricInput, 0, len(metrics))
+	activeCategories := map[int64]struct{}{}
 	for _, m := range metrics {
-		rows, err := db.QueryContext(ctx, `SELECT mv.state_id,mv.value FROM metric_values mv JOIN imports i ON i.id=mv.import_id WHERE mv.metric_id=? AND mv.year=? AND i.status IN ('completed','completed_with_errors') AND mv.id=(SELECT max(mv2.id) FROM metric_values mv2 JOIN imports i2 ON i2.id=mv2.import_id WHERE mv2.state_id=mv.state_id AND mv2.metric_id=mv.metric_id AND mv2.year=mv.year AND i2.status IN ('completed','completed_with_errors'))`, m.ID, year)
+		obs, err := loadAsOfObservations(ctx, db, m.ID, asOfYear)
 		if err != nil {
 			return 0, err
 		}
-		var obs []Observation
-		for rows.Next() {
-			var id int64
-			var value float64
-			if err = rows.Scan(&id, &value); err != nil {
-				rows.Close()
-				return 0, err
-			}
-			v := value
-			obs = append(obs, Observation{id, &v})
-		}
-		rows.Close()
 		scores, err := Normalize(obs, NormalizationMethod(m.NormalizationMethod), m.HigherIsBetter, nil, nil)
 		if err != nil {
 			return 0, fmt.Errorf("normalize %s: %w", m.Slug, err)
@@ -75,7 +60,24 @@ func Recalculate(ctx context.Context, db *sql.DB, profileID int64, year int) (in
 			w = v
 		}
 		metricInputs = append(metricInputs, MetricInput{m.ID, m.CategoryID, w, scores})
+		activeCategories[m.CategoryID] = struct{}{}
 	}
+
+	categoryInputs := make([]CategoryInput, 0, len(categories))
+	for _, c := range categories {
+		if _, ok := activeCategories[c.ID]; !ok {
+			continue
+		}
+		w := c.DefaultWeight
+		if v, ok := categoryWeight[c.ID]; ok {
+			w = v
+		}
+		categoryInputs = append(categoryInputs, CategoryInput{c.ID, w})
+	}
+	if len(categoryInputs) == 0 {
+		return 0, nil
+	}
+
 	ids := make([]int64, len(states))
 	for i, s := range states {
 		ids[i] = s.ID
@@ -90,10 +92,71 @@ func Recalculate(ctx context.Context, db *sql.DB, profileID int64, year int) (in
 		for id, c := range score.Categories {
 			cats = append(cats, models.CategoryScoreSnapshot{CategoryID: id, Score: c.Score, Completeness: c.Completeness})
 		}
-		snap := models.ScoreSnapshot{ProfileID: profileID, StateID: score.StateID, Year: year, OverallScore: score.Overall.Score, Completeness: score.Overall.Completeness, CalculatedAt: time.Now().UTC(), CalculationVersion: CalculationVersion}
+		snap := models.ScoreSnapshot{
+			ProfileID:          profileID,
+			StateID:            score.StateID,
+			Year:               asOfYear,
+			OverallScore:       score.Overall.Score,
+			Completeness:       score.Overall.Completeness,
+			CalculatedAt:       time.Now().UTC(),
+			CalculationVersion: CalculationVersion,
+		}
 		if err := repo.Save(&snap, cats); err != nil {
 			return 0, err
 		}
 	}
 	return len(calculated), nil
+}
+
+func loadAsOfObservations(ctx context.Context, db *sql.DB, metricID int64, asOfYear int) ([]Observation, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT mv.state_id, mv.year, mv.id, mv.value
+		FROM metric_values mv
+		JOIN imports i ON i.id = mv.import_id
+		WHERE mv.metric_id = ?
+		  AND mv.year <= ?
+		  AND i.status IN ('completed', 'completed_with_errors')
+		ORDER BY mv.state_id ASC, mv.year DESC, mv.id DESC`, metricID, asOfYear)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var obs []Observation
+	seen := map[int64]struct{}{}
+	for rows.Next() {
+		var stateID, rowID int64
+		var year int
+		var value float64
+		if err = rows.Scan(&stateID, &year, &rowID, &value); err != nil {
+			return nil, err
+		}
+		if _, ok := seen[stateID]; ok {
+			continue
+		}
+		seen[stateID] = struct{}{}
+		v := value
+		obs = append(obs, Observation{stateID, &v})
+	}
+	return obs, rows.Err()
+}
+
+// EnsureLatest recalculates the default profile for the latest available as-of year.
+func EnsureLatest(ctx context.Context, db *sql.DB) error {
+	profile, err := repositories.NewProfileRepository(db).GetDefault()
+	if err != nil {
+		return err
+	}
+	if profile == nil {
+		return nil
+	}
+	years, err := repositories.NewMetricValueRepository(db).AvailableYears()
+	if err != nil {
+		return err
+	}
+	if len(years) == 0 {
+		return nil
+	}
+	_, err = Recalculate(ctx, db, profile.ID, years[0])
+	return err
 }

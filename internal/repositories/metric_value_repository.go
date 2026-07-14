@@ -50,6 +50,38 @@ func (r *MetricValueRepository) ListByState(stateID int64, year int) ([]models.M
 	return values, rows.Err()
 }
 
+// ListAll returns metric values for all states, optionally filtered by year.
+// It is the bulk counterpart to ListByState for rankings and exports.
+func (r *MetricValueRepository) ListAll(year int) ([]models.MetricValue, error) {
+	query := `SELECT id, state_id, metric_id, year, value, source_record_id, import_id, created_at FROM metric_values`
+	args := []any{}
+	if year > 0 {
+		query += ` WHERE year = ?`
+		args = append(args, year)
+	}
+	query += ` ORDER BY state_id, metric_id, year`
+
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list all metric values: %w", err)
+	}
+	defer rows.Close()
+
+	values := make([]models.MetricValue, 0)
+	for rows.Next() {
+		var mv models.MetricValue
+		var importID sql.NullInt64
+		if err := rows.Scan(&mv.ID, &mv.StateID, &mv.MetricID, &mv.Year, &mv.Value, &mv.SourceRecordID, &importID, &mv.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan metric value: %w", err)
+		}
+		if importID.Valid {
+			mv.ImportID = &importID.Int64
+		}
+		values = append(values, mv)
+	}
+	return values, rows.Err()
+}
+
 // ListByMetric returns all values for a metric, optionally filtered by year.
 func (r *MetricValueRepository) ListByMetric(metricID int64, year int) ([]models.MetricValue, error) {
 	query := `SELECT id, state_id, metric_id, year, value, source_record_id, import_id, created_at FROM metric_values WHERE metric_id = ?`

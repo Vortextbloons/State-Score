@@ -9,13 +9,12 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/isaac/statescore/internal/config"
 	"github.com/isaac/statescore/internal/importer"
+	"github.com/isaac/statescore/internal/jobs"
 	"github.com/isaac/statescore/internal/models"
-	"github.com/isaac/statescore/internal/repositories"
 	"github.com/isaac/statescore/internal/scoring"
 )
 
@@ -24,67 +23,41 @@ type Handler struct {
 	DB        *sql.DB
 	StartedAt time.Time
 
-	States        *repositories.StateRepository
-	Categories    *repositories.CategoryRepository
-	Metrics       *repositories.MetricRepository
-	MetricValues  *repositories.MetricValueRepository
-	Sources       *repositories.DataSourceRepository
-	Imports       *repositories.ImportRepository
-	Profiles      *repositories.ProfileRepository
-	activeImports atomic.Int64
+	States       stateStore
+	Categories   categoryStore
+	Metrics      metricStore
+	MetricValues metricValueStore
+	Sources      sourceStore
+	Imports      importStore
+	Profiles     profileStore
+	Scores       scoreStore
+	Jobs         *jobs.Manager
 }
 
 // NewHandler constructs the API handler.
-func NewHandler(db *sql.DB) *Handler {
+func NewHandler(db *sql.DB, managers ...*jobs.Manager) *Handler {
+	return NewHandlerWithDependencies(db, repositoryDependencies(db), managers...)
+}
+
+// NewHandlerWithDependencies constructs a handler from explicit boundary dependencies.
+func NewHandlerWithDependencies(db *sql.DB, deps Dependencies, managers ...*jobs.Manager) *Handler {
+	manager := jobs.New(context.Background())
+	if len(managers) > 0 && managers[0] != nil {
+		manager = managers[0]
+	}
 	return &Handler{
 		DB:           db,
 		StartedAt:    time.Now().UTC(),
-		States:       repositories.NewStateRepository(db),
-		Categories:   repositories.NewCategoryRepository(db),
-		Metrics:      repositories.NewMetricRepository(db),
-		MetricValues: repositories.NewMetricValueRepository(db),
-		Sources:      repositories.NewDataSourceRepository(db),
-		Imports:      repositories.NewImportRepository(db),
-		Profiles:     repositories.NewProfileRepository(db),
+		States:       deps.States,
+		Categories:   deps.Categories,
+		Metrics:      deps.Metrics,
+		MetricValues: deps.MetricValues,
+		Sources:      deps.Sources,
+		Imports:      deps.Imports,
+		Profiles:     deps.Profiles,
+		Scores:       deps.Scores,
+		Jobs:         manager,
 	}
-}
-
-// Mount registers API routes on mux.
-func (h *Handler) Mount(mux *http.ServeMux) {
-	// Status endpoints
-	mux.HandleFunc("GET /api/v1/health", h.health)
-	mux.HandleFunc("GET /api/v1/status", h.status)
-
-	// State endpoints
-	mux.HandleFunc("GET /api/v1/states", h.listStates)
-	mux.HandleFunc("GET /api/v1/states/{code}", h.getState)
-	mux.HandleFunc("GET /api/v1/regions", h.listRegions)
-
-	// Category endpoints
-	mux.HandleFunc("GET /api/v1/categories", h.listCategories)
-
-	// Metric endpoints
-	mux.HandleFunc("GET /api/v1/metrics", h.listMetrics)
-	mux.HandleFunc("GET /api/v1/metrics/{metricId}", h.getMetric)
-
-	// Metric value endpoints
-	mux.HandleFunc("GET /api/v1/values", h.listMetricValues)
-
-	// Profile endpoints
-	mux.HandleFunc("GET /api/v1/profiles", h.listProfiles)
-	mux.HandleFunc("GET /api/v1/profiles/{profileId}", h.getProfile)
-	mux.HandleFunc("GET /api/v1/profiles/default", h.getDefaultProfile)
-
-	// Source endpoints
-	mux.HandleFunc("GET /api/v1/sources", h.listSources)
-	mux.HandleFunc("POST /api/v1/sources", h.createSource)
-	mux.HandleFunc("PUT /api/v1/sources/{sourceId}", h.updateSource)
-
-	// Import endpoints
-	mux.HandleFunc("GET /api/v1/imports", h.listImports)
-	mux.HandleFunc("GET /api/v1/imports/{importId}", h.getImport)
-	mux.HandleFunc("POST /api/v1/imports", h.createImport)
-	mux.HandleFunc("POST /api/v1/scores/recalculate", h.recalculateScores)
 }
 
 func (h *Handler) health(w http.ResponseWriter, r *http.Request) {
@@ -113,7 +86,7 @@ func (h *Handler) status(w http.ResponseWriter, r *http.Request) {
 		"status":        status,
 		"version":       config.Version,
 		"databaseReady": databaseReady,
-		"activeImports": h.activeImports.Load(),
+		"activeImports": h.Jobs.Active(),
 		"startedAt":     h.StartedAt.Format(time.RFC3339),
 	})
 }
@@ -254,13 +227,13 @@ func (h *Handler) listMetricValues(w http.ResponseWriter, r *http.Request) {
 		year = y
 	}
 
-	// For now, require state_id to list values
+	var values []models.MetricValue
+	var err error
 	if stateID == 0 {
-		writeError(w, http.StatusBadRequest, "MISSING_STATE_ID", "State ID is required", nil)
-		return
+		values, err = h.MetricValues.ListAll(year)
+	} else {
+		values, err = h.MetricValues.ListByState(stateID, year)
 	}
-
-	values, err := h.MetricValues.ListByState(stateID, year)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "LIST_VALUES_FAILED", "Failed to list metric values", err)
 		return
@@ -512,18 +485,16 @@ func (h *Handler) createImport(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 500, "CREATE_IMPORT_FAILED", "Failed to create import", err)
 		return
 	}
-	h.activeImports.Add(1)
-	go h.runImport(record, content)
+	h.Jobs.Go(func(ctx context.Context) { h.runImport(ctx, record, content) })
 	writeJSON(w, 202, map[string]any{"data": record, "meta": map[string]any{"fileName": header.Filename}})
 }
 
-func (h *Handler) runImport(record models.Import, content []byte) {
-	defer h.activeImports.Add(-1)
+func (h *Handler) runImport(ctx context.Context, record models.Import, content []byte) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	record.StartedAt = &now
 	record.Status = "running"
 	_ = h.Imports.Update(&record)
-	result, err := importer.CSV(context.Background(), h.DB, record.ID, content)
+	result, err := importer.CSV(ctx, h.DB, record.ID, content)
 	record.RecordsRead = result.RecordsRead
 	record.RecordsInserted = result.RecordsInserted
 	record.RecordsRejected = result.RecordsRejected
@@ -551,10 +522,58 @@ func (h *Handler) runImport(record models.Import, content []byte) {
 		if p, e := h.Profiles.GetDefault(); e == nil && p != nil {
 			years, _ := h.MetricValues.AvailableYears()
 			for _, year := range years {
-				_, _ = scoring.Recalculate(context.Background(), h.DB, p.ID, year)
+				if ctx.Err() != nil {
+					return
+				}
+				_, _ = scoring.Recalculate(ctx, h.DB, p.ID, year)
 			}
 		}
 	}
+}
+
+func (h *Handler) listScores(w http.ResponseWriter, r *http.Request) {
+	profileID, year, err := h.resolveScoreQuery(r)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "SCORE_QUERY_INVALID", err.Error(), err)
+		return
+	}
+	if err := h.ensureSnapshots(r.Context(), profileID, year); err != nil {
+		writeError(w, http.StatusInternalServerError, "SCORE_ENSURE_FAILED", "Failed to prepare score snapshots", err)
+		return
+	}
+	rows, err := h.Scores.ListByProfileYear(profileID, year, scoring.CalculationVersion)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "LIST_SCORES_FAILED", "Failed to list scores", err)
+		return
+	}
+	scores := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		categories := make([]map[string]any, 0, len(row.Categories))
+		for _, c := range row.Categories {
+			categories = append(categories, map[string]any{
+				"categoryId":   c.CategoryID,
+				"score":        c.Score,
+				"completeness": c.Completeness,
+			})
+		}
+		scores = append(scores, map[string]any{
+			"stateId":            row.Snapshot.StateID,
+			"overallScore":       row.Snapshot.OverallScore,
+			"completeness":       row.Snapshot.Completeness,
+			"calculatedAt":       row.Snapshot.CalculatedAt.UTC().Format(time.RFC3339),
+			"calculationVersion": row.Snapshot.CalculationVersion,
+			"categories":         categories,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"data": map[string]any{
+			"profileId":          profileID,
+			"year":               year,
+			"asOfYear":           year,
+			"calculationVersion": scoring.CalculationVersion,
+			"scores":             scores,
+		},
+	})
 }
 
 func (h *Handler) recalculateScores(w http.ResponseWriter, r *http.Request) {
@@ -588,6 +607,48 @@ func (h *Handler) recalculateScores(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"data": map[string]any{"profileId": input.ProfileID, "year": input.Year, "statesCalculated": count}})
+}
+
+func (h *Handler) resolveScoreQuery(r *http.Request) (profileID int64, year int, err error) {
+	if v := r.URL.Query().Get("profile_id"); v != "" {
+		profileID, err = strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("invalid profile_id")
+		}
+	}
+	if v := r.URL.Query().Get("year"); v != "" {
+		year, err = strconv.Atoi(v)
+		if err != nil {
+			return 0, 0, fmt.Errorf("invalid year")
+		}
+	}
+	if profileID == 0 {
+		p, e := h.Profiles.GetDefault()
+		if e != nil || p == nil {
+			return 0, 0, fmt.Errorf("no default scoring profile is available")
+		}
+		profileID = p.ID
+	}
+	if year == 0 {
+		years, e := h.MetricValues.AvailableYears()
+		if e != nil || len(years) == 0 {
+			return 0, 0, fmt.Errorf("no imported data year is available")
+		}
+		year = years[0]
+	}
+	return profileID, year, nil
+}
+
+func (h *Handler) ensureSnapshots(ctx context.Context, profileID int64, year int) error {
+	ok, err := h.Scores.HasSnapshots(profileID, year, scoring.CalculationVersion)
+	if err != nil {
+		return err
+	}
+	if ok {
+		return nil
+	}
+	_, err = scoring.Recalculate(ctx, h.DB, profileID, year)
+	return err
 }
 
 func decodeJSON(r *http.Request, dst any) error {
