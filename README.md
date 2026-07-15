@@ -44,7 +44,3 @@ See [docs/guides/development.md](docs/guides/development.md) for detailed setup 
 | [docs/guides/development.md](docs/guides/development.md) | Setup and development guide |
 | [docs/reference/api.md](docs/reference/api.md) | API reference |
 | [docs/reference/configuration.md](docs/reference/configuration.md) | Configuration reference |
-
-## License
-
-Not specified.

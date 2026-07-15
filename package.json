@@ -9,7 +9,8 @@
 		"check": "npm run check --prefix frontend",
 		"test": "npm test --prefix frontend",
 		"lint": "npm run lint --prefix frontend",
-		"combine-docs": "node scripts/combine-docs.mjs"
+		"combine-docs": "node scripts/combine-docs.mjs",
+		"update-rankings": "node scripts/update-rankings.mjs"
 	},
 	"devDependencies": {
 		"concurrently": "^10.0.3",
