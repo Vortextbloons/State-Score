@@ -1,6 +1,6 @@
 # System Architecture
 
-StateScore is a local-first application: a SvelteKit interface calls a Go JSON API, which persists imported observations and calculated score snapshots in SQLite.
+StateScore is a local-first application: a SvelteKit 2 static SPA (Svelte 5 runes, built via @sveltejs/adapter-static with 200.html fallback) calls a Go JSON API served on 127.0.0.1. The Go backend persists imported observations and calculated score snapshots in SQLite via modernc.org/sqlite (pure Go, no CGO).
 
 ## Components and dependency direction
 
@@ -19,6 +19,9 @@ Go HTTP handlers -> domain workflows -> repositories -> SQLite
 - `internal/repositories` owns persistent queries.
 - `internal/jobs` owns cancellation, accounting, and shutdown of background work.
 - `frontend/src/lib/api` is the typed browser boundary.
+- `web/embed.go` embeds the compiled frontend (`web/dist/`) via `//go:embed all:dist`
+- `internal/webui/handler.go` serves the embedded SPA
+- `internal/security/` and `internal/metrics/` exist as empty packages (no source files yet)
 
 ## Workflows
 
@@ -26,6 +29,10 @@ Rankings load catalogs, all observations through bulk `GET /values`, and a canon
 
 ## Contracts and boundaries
 
-Browser input and files are untrusted. `spec/openapi.yaml` is the route-level API contract. SQL migrations are embedded and applied in lexical order. Imported datasets are data, not schema; future large datasets should use imports rather than seed migrations.
+Browser input and files are untrusted. Routes use Go 1.22+ `http.ServeMux` with method-pattern matching. The server listens on `127.0.0.1` (default port 8787, with automatic fallback up to +49 if occupied). No authentication, TLS, or CORS headers — localhost-only design. SQL migrations are embedded and applied in lexical order. Imported datasets are data, not schema; future large datasets should use imports rather than seed migrations.
+
+Graceful shutdown: SIGINT/SIGTERM stops the HTTP server first, then cancels background jobs (10s timeout).
+
+> **Note:** The OpenAPI spec at `spec/openapi.yaml` is significantly outdated — many routes are missing.
 
 See [Extending StateScore](../guides/extending.md) for supported extension workflows.

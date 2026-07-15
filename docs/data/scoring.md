@@ -113,7 +113,7 @@ overall_completeness = sum(category_weight * category_completeness) / sum(all po
 | Safety | 0.20 |
 | Affordability | 0.20 |
 
-Categories without any active metrics are excluded from scoring entirely. Currently only Health, Safety, and Affordability participate.
+All 5 categories (Economy, Education, Health, Safety, Affordability) currently have active metrics and participate in scoring.
 
 ### Metric Weights
 
@@ -163,4 +163,4 @@ Traffic fatalities (lowerIsBetter):
 
 ### Step 3: Overall (if Safety weight = 0.20)
 
-Safety contributes 20% of the final score. If Health and Affordability also have scores, they contribute 20% each. Remaining 40% comes from Economy and Education if they have active metrics.
+Safety contributes 20% of the final score. Health and Affordability also contribute 20% each. The remaining 40% comes from Economy and Education, which now have active metrics.

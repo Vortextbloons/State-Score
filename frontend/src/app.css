@@ -1,15 +1,15 @@
 :root {
   color-scheme: dark;
-  --ink: #e8e6e1;
-  --muted: #9ca8af;
-  --paper: #1a1a2e;
-  --white: #222240;
-  --blue: #4a9ebe;
-  --lake: #5bc0d0;
-  --coral: #f06449;
-  --mist: #2a2a4a;
-  --line: #3a3a5c;
-  --good: #4ade80;
+  --ink: #f0f0f0;
+  --muted: #7a8599;
+  --paper: #0a0b12;
+  --white: #12141f;
+  --blue: #0055ff;
+  --lake: #0066ff;
+  --coral: #ff1a1a;
+  --mist: #1a1d2e;
+  --line: #252840;
+  --good: #00ff88;
   --font-display: Georgia, "Times New Roman", serif;
   --font-body: "Segoe UI", Arial, sans-serif;
   --font-data: Consolas, "SFMono-Regular", monospace;
@@ -61,7 +61,7 @@ a { color: inherit }
   border: 1px solid var(--line);
   border-radius: 18px;
   padding: clamp(1rem, 2.5vw, 1.5rem);
-  box-shadow: 0 7px 25px rgba(0,0,0,0.3);
+  box-shadow: 0 7px 30px rgba(0,0,0,0.5);
 }
 .btn {
   display: inline-flex;

@@ -126,6 +126,16 @@ Per-row validation error.
 | `rawValue` | `string` | The offending value |
 | `errorMessage` | `string` | Validation error text |
 
+## Application Settings
+
+Key-value store for application-level configuration.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `key` | `string` | TEXT PRIMARY KEY |
+| `value` | `string` | TEXT value |
+| `updatedAt` | `string` | Timestamp |
+
 ## Scoring Entities
 
 ### ScoringProfile
@@ -191,10 +201,14 @@ Category breakdown for a snapshot.
 
 ## Currently Active Metrics
 
-After migration `000008_scoring_honesty.sql`, only 4 metrics in 3 categories are active:
+After migration `000009_seed_economy_education_data`, 8 metrics across all 5 categories are active:
 
 | Category | Metric Slug | Unit | Direction | Normalization |
 |----------|-------------|------|-----------|---------------|
+| Economy | `unemployment-rate` | Percent | lowerIsBetter | percentile |
+| Economy | `median-household-income` | Dollars | higherIsBetter | percentile |
+| Education | `high-school-graduation-rate` | Percent | higherIsBetter | percentile |
+| Education | `bachelors-degree-attainment` | Percent | higherIsBetter | percentile |
 | Health | `life-expectancy` | Years | higherIsBetter | percentile |
 | Safety | `violent-crime-rate` | Per 100k | lowerIsBetter | percentile |
 | Safety | `traffic-fatalities` | Per 100k | lowerIsBetter | percentile |
@@ -206,9 +220,5 @@ These metrics are defined but deactivated until data is imported:
 
 | Metric Slug | Category | Unit | Direction |
 |-------------|----------|------|-----------|
-| `unemployment-rate` | Economy | Percent | lowerIsBetter |
-| `median-household-income` | Economy | Dollars | higherIsBetter |
-| `high-school-graduation-rate` | Education | Percent | higherIsBetter |
-| `bachelors-degree-attainment` | Education | Percent | higherIsBetter |
 | `uninsured-rate` | Health | Percent | lowerIsBetter |
 | `median-rent` | Affordability | Dollars | lowerIsBetter |

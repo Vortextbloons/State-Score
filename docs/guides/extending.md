@@ -2,13 +2,15 @@
 
 ## Add a category or metric
 
-1. Add catalog metadata in a new numbered migration; never edit an applied migration.
+1. Add catalog metadata in a new numbered migration; never edit an applied migration. Metrics without data can be hidden by setting `active=0`.
 2. Choose a tested normalization method from `internal/scoring`.
 3. Import observations using the metric slug.
 4. Recalculate snapshots and verify completeness and directionality.
 5. Update methodology copy if visible scoring behavior changes.
 
 Catalog-driven screens discover active records automatically. Avoid hard-coded IDs.
+
+The `application_settings` table stores `calculation_version` (currently `"1"`). Increment this value when the scoring algorithm changes.
 
 ## Add an API capability
 
@@ -22,7 +24,7 @@ Prefer bulk endpoints so request counts do not grow with states or metrics.
 
 ## Add an import format
 
-Keep parsing and validation in `internal/importer`. Importers must honor cancellation, validate before committing, preserve provenance, and return row-level issues in the common result shape.
+Keep parsing and validation in `internal/importer`. Importers must honor cancellation, validate before committing, preserve provenance, and return row-level issues in the common result shape. Imports automatically trigger score recalculation.
 
 ## Add background work
 
@@ -30,4 +32,4 @@ Submit application-owned work through `internal/jobs.Manager`. Do not start untr
 
 ## Change persistence
 
-Repositories own SQL. Workflows should consume the smallest storage interface they need. Structural changes belong in `internal/database/migrations`; operational datasets belong in the import workflow.
+Repositories own SQL. Workflows should consume the smallest storage interface they need. Structural changes belong in `internal/database/migrations`; operational datasets belong in the import workflow. Key-value settings for application state are stored in the `application_settings` table.
