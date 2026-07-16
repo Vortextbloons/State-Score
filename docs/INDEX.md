@@ -19,6 +19,7 @@ State data model, scoring methodology, and data quality controls.
 | [data/state-data.md](data/state-data.md) | Data structures, schema, entity relationships |
 | [data/scoring.md](data/scoring.md) | Scoring methodology, normalization, weights |
 | [data/data-quality.md](data/data-quality.md) | Validation, integrity checks, provenance |
+| [data/sources.md](data/sources.md) | Metric source catalog, retrieval locations, formulas, and caveats |
 
 ## Components
 

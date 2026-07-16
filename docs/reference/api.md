@@ -26,7 +26,7 @@ The [OpenAPI spec](../../spec/openapi.yaml) is incomplete and may be outdated.
 
 ## Values
 
-`GET /values?state_id=&year=` — Get metric values with optional filters.
+`GET /values?state_id=&year=` — Get metric values with optional filters. Each value includes a `quality` object (`reportingCoverage`, `participatingAgencies`, `populationCovered`, `dataRevision`, `scoringEligible`, `exclusionReason`) when source-specific metadata is available.
 
 ## Sources & Imports
 
@@ -45,7 +45,7 @@ CSV columns: `state_code`, `metric_slug`, `year`, `value` (required); `source_re
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/scores?profile_id=&year=` | Scoreboard — returns `{profileId, year, asOfYear, calculationVersion, scores: [{stateId, overallScore, completeness, categories}]}` |
+| GET | `/scores?profile_id=&year=` | Scoreboard — returns `{profileId, year, asOfYear, calculationVersion, scores: [{stateId, overallScore, completeness, calculatedAt, calculationVersion, categories}]}` |
 | POST | `/scores/recalculate` | Body `{"profileId":int64,"year":int}` — returns `{profileId, year, statesCalculated:int}` |
 
 ## Frontend

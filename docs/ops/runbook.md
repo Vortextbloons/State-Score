@@ -21,7 +21,7 @@ The Go binary embeds the frontend (`web/dist/`) and SQL migrations at compile ti
 ```
 
 - **Port**: `8787` by default, configurable via `STATESCORE_PORT`
-- **Host**: `127.0.0.1` only (localhost, not configurable)
+- **Host**: `127.0.0.1` by default, configurable via `STATESCORE_HOST`
 - **Database**: auto-created on first run at the OS-specific data directory
 - **Browser**: auto-opens on startup; disable with `STATESCORE_NO_BROWSER=1`
 - **Shutdown**: graceful on SIGINT/SIGTERM with 10-second timeout
@@ -44,12 +44,36 @@ If `STATESCORE_PORT` is busy, the app scans up to 49 subsequent ports (`port+1` 
 |---|---|
 | Authentication | None — no auth middleware, no passwords, no API keys |
 | TLS | None — plain HTTP (localhost-only, no CORS needed) |
-| CORS | Not set — Vite dev proxy handles cross-origin in dev; production is localhost-only |
+| CORS | Not set — Vite dev proxy handles cross-origin in dev; production is localhost-only (Docker sets `STATESCORE_HOST=0.0.0.0`, making the server accessible from any network interface — bind to a specific IP or add a reverse proxy if network exposure is a concern) |
 | SQL injection | Mitigated — parameterized queries used throughout |
 | CSV upload limit | 10 MB max via `http.MaxBytesReader` + `io.LimitReader`; `.csv` extension required |
 | JSON request limit | 1 MB; `DisallowUnknownFields()` rejects unexpected keys |
 | Static file serving | Only GET/HEAD allowed; paths under `/api/` are blocked |
 | `internal/security/` | Package directory exists but is **empty** — no security code is currently enforced here |
+
+## Docker Deployment
+
+```bash
+docker compose build
+docker compose up -d        # starts on host port :8787
+docker compose logs -f      # tail server logs
+docker compose down         # stop container
+```
+
+Alternatively, build with plain Docker:
+
+```bash
+docker build -t statescore .
+docker run -d -p 8787:8787 -v statescore-data:/data statescore
+```
+
+The image runs the same Go binary in an Alpine container. Key differences from a local run:
+
+- **Host**: `STATESCORE_HOST=0.0.0.0` — the server listens on all network interfaces (not just localhost).
+- **Browser**: `STATESCORE_NO_BROWSER=1` — no browser auto-open inside the container.
+- **Data**: `XDG_DATA_HOME=/data` — persistent SQLite database stored on a Docker volume (`statescore-data`).
+- **Restart**: `restart: unless-stopped` in the compose file keeps the container running after crashes or host reboots.
+- **Logs**: Use `docker compose logs -f` instead of looking for stdout; there is no persistent log file.
 
 ## Common Issues
 

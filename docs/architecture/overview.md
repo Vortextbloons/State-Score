@@ -25,13 +25,17 @@ Go HTTP handlers -> domain workflows -> repositories -> SQLite
 
 ## Workflows
 
-Rankings load catalogs, all observations through bulk `GET /values`, and a canonical score snapshot. Imports are submitted to the managed job lifecycle, validated before insertion, and trigger snapshot recalculation. Scoring selects the latest observation at or before the requested year, normalizes active metrics, applies profile weights, and persists versioned snapshots.
+Rankings load catalogs, all observations through bulk `GET /values`, and a canonical score snapshot. Imports are submitted to the managed job lifecycle, validated before insertion, and trigger snapshot recalculation. Scoring selects the latest observation at or before the requested year, normalizes active metrics, applies profile weights, and persists versioned snapshots. Observations with `scoring_eligible = 0` in the `metric_value_quality` table are excluded during the as-of observation query (`loadAsOfObservations` in `internal/scoring/recalculate.go`).
 
 ## Contracts and boundaries
 
 Browser input and files are untrusted. Routes use Go 1.22+ `http.ServeMux` with method-pattern matching. The server listens on `127.0.0.1` (default port 8787, with automatic fallback up to +49 if occupied). No authentication, TLS, or CORS headers — localhost-only design. SQL migrations are embedded and applied in lexical order. Imported datasets are data, not schema; future large datasets should use imports rather than seed migrations.
 
 Graceful shutdown: SIGINT/SIGTERM stops the HTTP server first, then cancels background jobs (10s timeout).
+
+## Docker deployment
+
+A multi-stage Docker build (`Dockerfile`) compiles the Go binary and embeds the frontend build in a single stage, then copies the binary into an `alpine:3.21` runtime image. The container runs on `0.0.0.0:8787`, disables automatic browser opening (`STATESCORE_NO_BROWSER=1`), and stores data in a mounted volume at `/data`. The `docker-compose.yml` provides a single-service setup with a named volume for persistence and `restart: unless-stopped`.
 
 > **Note:** The OpenAPI spec at `spec/openapi.yaml` is significantly outdated — many routes are missing.
 

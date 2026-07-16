@@ -52,18 +52,6 @@ export async function loadScores(
 	}
 
 	const asOfYear = board?.asOfYear ?? year ?? years[0] ?? null;
-	const metricYears = new Map<number, number>();
-	for (const m of metrics) {
-		const available = [
-			...new Set(
-				everyValue
-					.filter((v) => v.metricId === m.id && (asOfYear == null || v.year <= asOfYear))
-					.map((v) => v.year)
-			)
-		].sort((a, b) => b - a);
-		if (available[0]) metricYears.set(m.id, available[0]);
-	}
-
 	const byState = new Map(board?.scores.map((s) => [s.stateId, s]) ?? []);
 	const rows: Row[] = states.map((state) => {
 		const snap = byState.get(state.id);
@@ -81,14 +69,24 @@ export async function loadScores(
 					totalW
 				: null;
 		}
+		const values = metrics.flatMap((metric) => {
+			const latest = everyValue
+				.filter(
+					(v) =>
+						v.stateId === state.id &&
+						v.metricId === metric.id &&
+						(asOfYear == null || v.year <= asOfYear) &&
+						(v.quality?.scoringEligible ?? true)
+				)
+				.sort((a, b) => b.year - a.year || b.id - a.id)[0];
+			return latest ? [latest] : [];
+		});
 		return {
 			state,
 			overall,
 			categories: cs,
 			completeness: snap?.completeness ?? 0,
-			values: everyValue.filter(
-				(v) => v.stateId === state.id && v.year === metricYears.get(v.metricId)
-			)
+			values
 		};
 	});
 	rows.sort((a, b) => (b.overall ?? -1) - (a.overall ?? -1));
@@ -107,4 +105,24 @@ export async function loadScores(
 
 export function fmt(v: number | null, digits = 1) {
 	return v == null ? '—' : v.toFixed(digits);
+}
+
+export function formatValue(value: number | null, unit?: string): string {
+	if (value == null) return '—';
+	const formatted = value.toLocaleString();
+	if (!unit) return formatted;
+	switch (unit) {
+		case 'Dollars':
+			return `$${formatted}`;
+		case 'Percent':
+			return `${value.toFixed(2)}%`;
+		case 'Per 100k':
+			return `${formatted}/100k`;
+		case 'Years':
+			return `${value.toFixed(1)} years`;
+		case 'Index':
+			return `${formatted} (US=100)`;
+		default:
+			return `${formatted} ${unit}`;
+	}
 }

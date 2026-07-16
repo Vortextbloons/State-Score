@@ -112,6 +112,10 @@ Only imports with status `completed` or `completed_with_errors` are included in 
 
 `metric_value_quality` stores observation-level coverage, participating-agency count when supplied by the source, population covered, revision, eligibility, and the exclusion reason. Property-crime observations use the minimum monthly FBI population coverage for the year and require at least 90% coverage. Ineligible observations remain visible through the API and state metric ledger but do not feed scoring.
 
+The as-of scorer skips ineligible rows and continues to an older eligible observation for the same state and metric. This permits quality-qualified fallbacks without weakening the threshold. If no eligible prior observation exists, the metric remains missing and its weight is redistributed.
+
+The scoring eligibility check in `loadAsOfObservations` uses `COALESCE(q.scoring_eligible, 1) = 1`, so rows without a quality record (null) are treated as eligible by default. Only rows with an explicit `scoring_eligible = 0` are excluded from scoring calculations.
+
 ## Data Provenance Chain
 
 Every metric value is traceable to its origin:

@@ -7,6 +7,8 @@ Core data structures, schema definitions, and relationships.
 ```
 State ─┐
        ├──< MetricValue >── Metric >── Category
+       │         │
+       │         └──< MetricValueQuality
        │
 DataSource ──< Import ──< ImportError
                      │
@@ -58,7 +60,7 @@ A measurable indicator within a category. Defines how raw values become scores.
 | `unit` | `string` | Display unit (`Percent`, `Dollars`, `Per 100k`, etc.) |
 | `higherIsBetter` | `bool` | Direction: `true` = higher raw value = better score |
 | `normalizationMethod` | `string` | `percentile`, `minmax`, `zscore`, or `fixed` |
-| `defaultWeight` | `float64` | Default weight within its category |
+| `defaultWeight` | `float64` | Default weight within its category (dynamically set to `1.0 / N` where `N` = count of active metrics in the category) |
 | `sourceId` | `*int64` | Optional FK to `data_sources` |
 | `active` | `bool` | Whether this metric participates in scoring |
 | `createdAt` / `updatedAt` | `string` | Timestamps |
@@ -79,6 +81,22 @@ A single data observation for one state, metric, and year.
 | `createdAt` | `string` | Timestamp |
 
 UNIQUE constraint: `(state_id, metric_id, year, import_id)`.
+
+### MetricValueQuality
+
+Observation-level metadata about source coverage, revision status, and scoring eligibility. One row per metric value, populated only for metrics that supply coverage information (e.g., FBI property-crime data).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `metricValueId` | `int64` | PK, FK to `metric_values`, CASCADE delete |
+| `reportingCoverage` | `*float64` | Coverage percentage (e.g., FBI minimum monthly population coverage) |
+| `participatingAgencies` | `*int` | Number of agencies reporting |
+| `populationCovered` | `*int64` | Population count covered |
+| `dataRevision` | `string` | Revision date or identifier |
+| `scoringEligible` | `bool` | Whether this observation feeds scoring (default `true`) |
+| `exclusionReason` | `string` | Why it is excluded from scoring (when `scoringEligible` is `false`) |
+
+The `MetricValue.Quality` field (`*MetricValueQuality` in Go) is populated via a `LEFT JOIN metric_value_quality q ON q.metric_value_id = mv.id` in all repository queries. Null quality columns produce a nil `Quality` pointer (no quality metadata), while `scoring_eligible` defaults to `1` in the DB and is treated as eligible.
 
 ## Data Provenance
 

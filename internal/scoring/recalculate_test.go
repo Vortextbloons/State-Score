@@ -59,7 +59,7 @@ func TestRecalculateUsesAsOfYearAndActiveMetrics(t *testing.T) {
 			t.Fatalf("state %d categories = %d, want 5", row.Snapshot.StateID, len(row.Categories))
 		}
 	}
-	if incomplete != 7 {
-		t.Fatalf("incomplete states = %d, want 7 (six FBI coverage exclusions and one suppressed CDC value)", incomplete)
+	if incomplete != 3 {
+		t.Fatalf("incomplete states = %d, want 3 states without a coverage-qualified FBI fallback", incomplete)
 	}
 }

@@ -87,6 +87,8 @@ score = sum(score_i * weight_i) / sum(included weights)
 
 **Key behavior**: Missing scores cause their weight to be redistributed to present scores. A category with 0% completeness returns `Incomplete: true` with no score.
 
+Because metric weights are now dynamic (some categories have 3 metrics, some have 2), the redistribution handles uneven counts correctly. The formula uses only the weights of metrics that actually have data for a given state; the denominator is the sum of included weights, not the sum of all active metric weights.
+
 ### Category Composition
 
 For each category, metric scores are combined using metric weights from the active profile.
@@ -117,7 +119,26 @@ All 5 categories (Economy, Education, Health, Safety, Affordability) currently h
 
 ### Metric Weights
 
-Each metric has `default_weight = 0.50` within its category (2 metrics per category, equally weighted).
+Weights are calculated dynamically as `default_weight = 1.0 / count_of_active_metrics_in_category`. Migration `000010` sets this via:
+
+```sql
+UPDATE metrics SET default_weight=1.0/(
+  SELECT count(*) FROM metrics sibling
+  WHERE sibling.category_id=metrics.category_id AND sibling.active=1
+) WHERE active=1;
+```
+
+Current default weights by category:
+
+| Category | Active Metrics | Each Metric Weight |
+|----------|----------------|--------------------|
+| Economy | 3 | ~0.333 |
+| Education | 3 | ~0.333 |
+| Health | 2 | 0.50 |
+| Safety | 3 | ~0.333 |
+| Affordability | 2 | 0.50 |
+
+These defaults are copied into `profile_metric_weights` at seed time. Overrides stored in `profile_metric_weights` take precedence over `metrics.default_weight`.
 
 ## Weight Override System
 
@@ -131,7 +152,7 @@ An optional "normalize to 100%" toggle divides each weight by the total so they 
 
 ## Worked Example
 
-Given 3 states and 2 metrics in the Safety category:
+Given 3 states and 2 metrics in the Safety category (simplified — Safety now has 3 active metrics; this example predates migration 000010):
 
 | State | Violent Crime Rate | Traffic Fatalities |
 |-------|-------------------|-------------------|

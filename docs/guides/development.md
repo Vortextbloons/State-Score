@@ -18,6 +18,7 @@ npm test                 # Vitest (frontend tests)
 npm run lint             # Prettier + ESLint
 npm run build            # builds frontend
 npm run combine-docs     # rebuilds docs/ALL.md
+npm run update-rankings  # recalculates all cached rankings
 ```
 
 Make targets are also available: `make dev`, `make dev-backend`, `make dev-backend-live`, `make build`, `make frontend-build`, `make go-build`, `make test`, `make tidy`.
@@ -35,3 +36,12 @@ Configuration is in `.air.toml`.
 Run Go tests with `go test ./cmd/... ./internal/... ./web/...`. The root `tests/` directory is empty (placeholder for future integration tests).
 
 For API changes, update `spec/openapi.yaml` and frontend types. For schema changes, add a migration under `internal/database/migrations`. After documentation changes, run `npm run combine-docs`; never edit `docs/ALL.md` manually.
+
+## Docker
+
+```bash
+docker compose build
+docker compose up -d   # starts on :8787
+```
+
+The Dockerfile uses a multi-stage build (Node frontend → Go builder → Alpine runtime). The container sets `STATESCORE_HOST=0.0.0.0`, `STATESCORE_NO_BROWSER=1`, and `XDG_DATA_HOME=/data` automatically. Data persists in a Docker volume (`statescore-data`). See [docs/ops/runbook.md](../ops/runbook.md) for full deployment details.

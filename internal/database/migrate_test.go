@@ -108,6 +108,21 @@ func TestBundledMetricData(t *testing.T) {
 		}
 	}
 
+	for _, fallback := range []struct {
+		slug string
+		year int
+		want int
+	}{
+		{slug: "adult-obesity-prevalence", year: 2023, want: 1},
+		{slug: "property-crime-rate", year: 2023, want: 1},
+		{slug: "property-crime-rate", year: 2020, want: 2},
+	} {
+		var count int
+		if err := db.QueryRow(`SELECT count(*) FROM metric_values mv JOIN metrics m ON m.id=mv.metric_id WHERE m.slug=? AND mv.year=?`, fallback.slug, fallback.year).Scan(&count); err != nil || count != fallback.want {
+			t.Fatalf("fallback %s/%d rows = %d, err=%v; want %d", fallback.slug, fallback.year, count, err, fallback.want)
+		}
+	}
+
 	for _, slug := range []string{
 		"uninsured-rate",
 		"median-rent",

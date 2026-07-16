@@ -98,3 +98,33 @@ INSERT INTO metric_value_quality(metric_value_id,reporting_coverage,population_c
 SELECT mv.id,q.coverage,q.population_covered,'2026-07-15',q.coverage>=90,CASE WHEN q.coverage<90 THEN 'Minimum monthly FBI population coverage below 90%' END
 FROM q JOIN states s ON s.code=q.code JOIN metrics m ON m.slug='property-crime-rate'
 JOIN metric_values mv ON mv.state_id=s.id AND mv.metric_id=m.id AND mv.year=2024;
+
+-- Coverage-qualified fallbacks used by the as-of scorer when a 2024 observation
+-- is suppressed or fails the FBI quality gate. No fallback is bundled unless it
+-- independently satisfies the same source/methodology rules.
+INSERT INTO imports(source_id,status,started_at,completed_at,records_read,records_inserted,records_rejected,checksum)
+SELECT id,'completed',datetime('now'),datetime('now'),3,3,0,'bundled-priority-property-crime-fallbacks-v1' FROM data_sources WHERE name='FBI Crime Data Explorer 2024 Property Crime';
+INSERT INTO imports(source_id,status,started_at,completed_at,records_read,records_inserted,records_rejected,checksum)
+SELECT id,'completed',datetime('now'),datetime('now'),1,1,0,'bundled-priority-obesity-fallback-v1' FROM data_sources WHERE name='CDC BRFSS Nutrition, Physical Activity and Obesity 2024';
+
+WITH o(code,year,value,coverage,population_covered) AS (VALUES
+ ('FL',2020,1768.08,99.57,21665734),
+ ('LA',2023,2437.83,91.48,4256322),
+ ('SD',2020,1821.63,94.76,847803)
+)
+INSERT INTO metric_values(state_id,metric_id,year,value,source_record_id,import_id)
+SELECT s.id,m.id,o.year,o.value,o.code,i.id FROM o
+JOIN states s ON s.code=o.code JOIN metrics m ON m.slug='property-crime-rate'
+JOIN imports i ON i.checksum='bundled-priority-property-crime-fallbacks-v1';
+
+WITH q(code,year,coverage,population_covered) AS (VALUES
+ ('FL',2020,99.57,21665734),('LA',2023,91.48,4256322),('SD',2020,94.76,847803)
+)
+INSERT INTO metric_value_quality(metric_value_id,reporting_coverage,population_covered,data_revision,scoring_eligible)
+SELECT mv.id,q.coverage,q.population_covered,'2026-07-15',1 FROM q
+JOIN states s ON s.code=q.code JOIN metrics m ON m.slug='property-crime-rate'
+JOIN metric_values mv ON mv.state_id=s.id AND mv.metric_id=m.id AND mv.year=q.year;
+
+INSERT INTO metric_values(state_id,metric_id,year,value,source_record_id,import_id)
+SELECT s.id,m.id,2023,37.6,'TN',i.id FROM states s,metrics m,imports i
+WHERE s.code='TN' AND m.slug='adult-obesity-prevalence' AND i.checksum='bundled-priority-obesity-fallback-v1';

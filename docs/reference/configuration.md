@@ -6,8 +6,11 @@ Environment variables and derived configuration values.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `STATESCORE_HOST` | `127.0.0.1` | Listen host. Docker image sets this to `0.0.0.0`. |
 | `STATESCORE_PORT` | `8787` | HTTP listen port. Dev backend overrides to 8080. Falls back through ports up to +49 if busy. |
 | `STATESCORE_NO_BROWSER` | *(unset)* | Set to `1` to skip opening browser on startup. |
+
+> **Docker image** also sets `XDG_DATA_HOME=/data` (mounted as a volume) so the database and application data live under `/data/statescore/`.
 
 ## Derived Configuration
 
