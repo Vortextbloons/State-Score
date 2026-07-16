@@ -1,4 +1,4 @@
-![StateScore](../app-icon.png)
+<img src="app-icon.png" alt="StateScore" width="200">
 
 # StateScore Frontend
 

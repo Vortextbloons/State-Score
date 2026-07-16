@@ -14,7 +14,12 @@ const API = `${BASE}/api/v1`;
 const README = join(dirname(fileURLToPath(import.meta.url)), '..', 'frontend', 'README.md');
 
 async function fetchJSON(path) {
-  const res = await fetch(`${API}${path}`);
+  let res;
+  try {
+    res = await fetch(`${API}${path}`);
+  } catch (err) {
+    throw new Error(`GET ${path} failed — is the backend running on ${BASE}?\n  ${err.message}`);
+  }
   if (!res.ok) {
     let msg = `${res.status} ${res.statusText}`;
     try { const body = await res.json(); msg = body.error?.message ?? msg; } catch {}
