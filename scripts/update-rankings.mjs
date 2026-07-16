@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Fetches rankings from the StateScore API and updates the Rankings section
-// in frontend/README.md. Run while the backend is serving on the configured port.
+// in README.md. Run while the backend is serving on the configured port.
 //
 // Usage: node scripts/update-rankings.mjs [base-url]
 //   base-url defaults to http://127.0.0.1:8080
@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 const BASE = process.argv[2] || 'http://127.0.0.1:8080';
 const API = `${BASE}/api/v1`;
-const README = join(dirname(fileURLToPath(import.meta.url)), '..', 'frontend', 'README.md');
+const README = join(dirname(fileURLToPath(import.meta.url)), '..', 'README.md');
 
 async function fetchJSON(path) {
   let res;
@@ -62,7 +62,7 @@ async function main() {
   const endIdx = readme.indexOf(end);
 
   if (startIdx === -1 || endIdx === -1) {
-    throw new Error('Could not find RANKINGS markers in frontend/README.md');
+    throw new Error('Could not find RANKINGS markers in README.md');
   }
 
   const before = readme.slice(0, startIdx + start.length);
@@ -70,7 +70,7 @@ async function main() {
   readme = `${before}\n${table}\n${after}`;
 
   writeFileSync(README, readme, 'utf-8');
-  console.log(`Updated frontend/README.md with ${ranked.length} rankings.`);
+  console.log(`Updated README.md with ${ranked.length} rankings.`);
 }
 
 main().catch(err => {
