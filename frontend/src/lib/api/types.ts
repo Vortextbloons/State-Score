@@ -99,6 +99,15 @@ export type ImportIssue = {
 	rawValue?: string;
 	errorMessage: string;
 };
+export type PublicSourceAdapter = {
+	id: string;
+	name: string;
+	publisher: string;
+	metricSlugs: string[];
+	defaultYear: number;
+	available: boolean;
+	unavailableReason?: string;
+};
 export class ApiError extends Error {
 	status: number;
 	constructor(status: number, message: string) {

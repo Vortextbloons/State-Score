@@ -35,6 +35,8 @@ func (h *Handler) mountSourcesAndImports(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/imports", h.listImports)
 	mux.HandleFunc("GET /api/v1/imports/{importId}", h.getImport)
 	mux.HandleFunc("POST /api/v1/imports", h.createImport)
+	mux.HandleFunc("GET /api/v1/public-sources", h.listPublicSources)
+	mux.HandleFunc("POST /api/v1/public-sources/refresh", h.refreshPublicSources)
 }
 
 func (h *Handler) mountScores(mux *http.ServeMux) {

@@ -5,6 +5,16 @@ info:
 servers:
   - url: /api/v1
 paths:
+  /public-sources:
+    get:
+      operationId: listPublicSources
+      responses:
+        '200': { description: Public source adapter collection }
+  /public-sources/refresh:
+    post:
+      operationId: refreshPublicSources
+      responses:
+        '202': { description: Refresh imports queued }
   /health:
     get:
       operationId: getHealth

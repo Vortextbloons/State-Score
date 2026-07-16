@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/isaac/statescore/internal/database"
@@ -52,5 +53,22 @@ func TestValuesSupportsBulkAndRejectsInvalidYear(t *testing.T) {
 		if w.Code != tc.status {
 			t.Fatalf("%s: status = %d, want %d", tc.path, w.Code, tc.status)
 		}
+	}
+}
+
+func TestPublicSourceCatalogAndRefreshValidation(t *testing.T) {
+	h := testHandler(t)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/public-sources", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("catalog status=%d", w.Code)
+	}
+
+	w = httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/public-sources/refresh", strings.NewReader(`{"adapterIds":["missing"],"year":2024}`))
+	r.Header.Set("Content-Type", "application/json")
+	h.ServeHTTP(w, r)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("refresh status=%d", w.Code)
 	}
 }

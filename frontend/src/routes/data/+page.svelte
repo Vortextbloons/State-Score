@@ -1,6 +1,7 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { api } from '$lib/api/client';
-	import type { DataSource, DataImport, ImportIssue } from '$lib/api/types';
+	import type { DataSource, DataImport, ImportIssue, PublicSourceAdapter } from '$lib/api/types';
 	let sources = $state<DataSource[]>([]),
 		imports = $state<DataImport[]>([]),
 		issues = $state<ImportIssue[]>([]),
@@ -10,6 +11,9 @@
 		busy = $state(false),
 		message = $state(''),
 		error = $state('');
+	let adapters = $state<PublicSourceAdapter[]>([]),
+		selectedAdapters = $state<string[]>([]),
+		refreshYear = $state(new Date().getFullYear() - 1);
 	let source = $state<Partial<DataSource>>({
 		name: '',
 		publisher: '',
@@ -26,7 +30,12 @@
 			: '—';
 	async function load() {
 		try {
-			[sources, imports] = await Promise.all([api.getSources(), api.getImports()]);
+			[sources, imports, adapters] = await Promise.all([
+				api.getSources(),
+				api.getImports(),
+				api.getPublicSources()
+			]);
+			if (selectedAdapters.length === 0) selectedAdapters = adapters.filter((a) => a.available).map((a) => a.id);
 			if (!sourceId && sources[0]) sourceId = String(sources[0].id);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Could not load data tools';
@@ -93,9 +102,22 @@
 			busy = false;
 		}
 	}
-	$effect(() => {
-		load();
-	});
+	async function refreshOfficial() {
+		if (selectedAdapters.length === 0) return;
+		busy = true;
+		error = '';
+		message = '';
+		try {
+			await api.refreshPublicSources(selectedAdapters, refreshYear);
+			message = `Refreshing ${selectedAdapters.length} public source${selectedAdapters.length === 1 ? '' : 's'} for ${refreshYear}.`;
+			await poll();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Public source refresh failed';
+		} finally {
+			busy = false;
+		}
+	}
+	onMount(load);
 </script>
 
 <svelte:head><title>Data workshop · StateScore</title></svelte:head>
@@ -116,6 +138,21 @@
 	>
 		{message}
 	</p>{/if}
+<section class="card refresh-deck">
+	<div class="refresh-head">
+		<div><p class="eyebrow">Official feeds</p><h2>Refresh public sources</h2><p class="muted">Choose the publishers to contact. Every run is validated, recorded in the import ledger, and scored only after it completes.</p></div>
+		<label class="year-field"><span>Data year</span><input type="number" min="2000" max={new Date().getFullYear()} bind:value={refreshYear} /></label>
+	</div>
+	<div class="adapter-grid">
+		{#each adapters as adapter (adapter.id)}
+			<label class:unavailable={!adapter.available} class="adapter">
+				<input type="checkbox" bind:group={selectedAdapters} value={adapter.id} disabled={!adapter.available || busy} />
+				<span><strong>{adapter.name}</strong><small>{adapter.publisher}</small><em>{adapter.metricSlugs.join(' / ')}</em>{#if !adapter.available}<small class="adapter-error">{adapter.unavailableReason}</small>{/if}</span>
+			</label>
+		{/each}
+	</div>
+	<div class="refresh-actions"><span>{selectedAdapters.length} selected</span><button class="btn" onclick={refreshOfficial} disabled={busy || selectedAdapters.length === 0}>{busy ? 'Refreshing…' : 'Refresh selected'}</button></div>
+</section>
 <div class="workbench">
 	<section class="card import-card">
 		<p class="eyebrow">01 · Import</p>
@@ -127,7 +164,7 @@
 		<div class="fields">
 			<label class="field"
 				><span>Data source</span><select bind:value={sourceId}
-					><option value="">Select a source</option>{#each sources as s}<option value={s.id}
+					><option value="">Select a source</option>{#each sources as s (s.id)}<option value={s.id}
 							>{s.name}</option
 						>{/each}</select
 				></label
@@ -191,7 +228,7 @@
 						></th></tr
 					></thead
 				><tbody
-					>{#each imports as item}<tr
+					>{#each imports as item (item.id)}<tr
 							><td
 								><span
 									class:bad={item.status === 'failed'}
@@ -229,7 +266,7 @@
 					<table>
 						<thead><tr><th>Row</th><th>Field</th><th>Raw value</th><th>Problem</th></tr></thead
 						><tbody
-							>{#each issues as issue}<tr
+							>{#each issues as issue (issue.id)}<tr
 									><td>{issue.rowNumber ?? '—'}</td><td><code>{issue.fieldName}</code></td><td
 										>{issue.rawValue || '—'}</td
 									><td>{issue.errorMessage}</td></tr
@@ -251,6 +288,22 @@
 		gap: 1rem;
 		margin-bottom: 1rem;
 	}
+	.refresh-deck { margin-bottom: 1rem; border-top: 6px solid var(--lake); }
+	.refresh-head { display: flex; justify-content: space-between; gap: 2rem; align-items: start; }
+	.refresh-head p { max-width: 48rem; }
+	.year-field { min-width: 9rem; display: grid; gap: .35rem; font-size: .72rem; font-weight: 800; text-transform: uppercase; color: var(--muted); }
+	.year-field input { font: 700 1rem var(--font-data); }
+	.adapter-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: .55rem; margin: 1.25rem 0; }
+	.adapter { display: grid; grid-template-columns: auto 1fr; gap: .7rem; padding: .85rem; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; background: var(--paper); }
+	.adapter:has(input:checked) { border-color: var(--lake); box-shadow: inset 4px 0 var(--lake); }
+	.adapter.unavailable { opacity: .58; cursor: not-allowed; }
+	.adapter input { margin-top: .2rem; }
+	.adapter span,.adapter small,.adapter em { display: block; }
+	.adapter small { color: var(--muted); }
+	.adapter em { margin-top: .4rem; font: 600 .68rem var(--font-data); color: var(--lake); }
+	.adapter-error { margin-top: .35rem; color: #a33d2a!important; }
+	.refresh-actions { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; }
+	.refresh-actions span { font: 700 .72rem var(--font-data); color: var(--muted); }
 	.workbench .card {
 		position: relative;
 		overflow: hidden;
@@ -382,6 +435,7 @@
 		}
 	}
 	@media (max-width: 560px) {
+		.refresh-head { display: grid; gap: 1rem; }
 		.source-grid {
 			grid-template-columns: 1fr;
 		}

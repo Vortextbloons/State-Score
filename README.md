@@ -99,12 +99,14 @@ See [docs/guides/development.md](docs/guides/development.md) for detailed setup 
 
 ### Docker
 
+The multi-stage `Dockerfile` builds the SvelteKit frontend, compiles the Go server with the frontend embedded, and packages everything into a single Alpine image. `docker-compose.yml` runs that image on port 8787 with a named volume (`statescore-data`) for persistent SQLite data.
+
 ```bash
 docker compose build
 docker compose up -d
 ```
 
-Open [http://localhost:8787](http://localhost:8787). See [docs/ops/runbook.md](docs/ops/runbook.md) for details.
+Open [http://localhost:8787](http://localhost:8787). See [docs/ops/runbook.md](docs/ops/runbook.md) for plain `docker` commands and deployment details.
 
 ## Documentation
 

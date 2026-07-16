@@ -15,6 +15,7 @@ import (
 	"github.com/isaac/statescore/internal/importer"
 	"github.com/isaac/statescore/internal/jobs"
 	"github.com/isaac/statescore/internal/models"
+	"github.com/isaac/statescore/internal/publicsources"
 	"github.com/isaac/statescore/internal/scoring"
 )
 
@@ -23,15 +24,16 @@ type Handler struct {
 	DB        *sql.DB
 	StartedAt time.Time
 
-	States       stateStore
-	Categories   categoryStore
-	Metrics      metricStore
-	MetricValues metricValueStore
-	Sources      sourceStore
-	Imports      importStore
-	Profiles     profileStore
-	Scores       scoreStore
-	Jobs         *jobs.Manager
+	States        stateStore
+	Categories    categoryStore
+	Metrics       metricStore
+	MetricValues  metricValueStore
+	Sources       sourceStore
+	Imports       importStore
+	Profiles      profileStore
+	Scores        scoreStore
+	Jobs          *jobs.Manager
+	PublicSources *publicsources.Service
 }
 
 // NewHandler constructs the API handler.
@@ -46,18 +48,78 @@ func NewHandlerWithDependencies(db *sql.DB, deps Dependencies, managers ...*jobs
 		manager = managers[0]
 	}
 	return &Handler{
-		DB:           db,
-		StartedAt:    time.Now().UTC(),
-		States:       deps.States,
-		Categories:   deps.Categories,
-		Metrics:      deps.Metrics,
-		MetricValues: deps.MetricValues,
-		Sources:      deps.Sources,
-		Imports:      deps.Imports,
-		Profiles:     deps.Profiles,
-		Scores:       deps.Scores,
-		Jobs:         manager,
+		DB:            db,
+		StartedAt:     time.Now().UTC(),
+		States:        deps.States,
+		Categories:    deps.Categories,
+		Metrics:       deps.Metrics,
+		MetricValues:  deps.MetricValues,
+		Sources:       deps.Sources,
+		Imports:       deps.Imports,
+		Profiles:      deps.Profiles,
+		Scores:        deps.Scores,
+		Jobs:          manager,
+		PublicSources: publicsources.NewService(db, publicsources.DefaultRegistry()),
 	}
+}
+
+func (h *Handler) listPublicSources(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"data": h.PublicSources.Specs()})
+}
+
+func (h *Handler) refreshPublicSources(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		AdapterIDs []string `json:"adapterIds"`
+		Year       int      `json:"year"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, 400, "INVALID_REFRESH", "Refresh request is invalid", err)
+		return
+	}
+	if request.Year != 0 && (request.Year < 2000 || request.Year > time.Now().Year()) {
+		writeError(w, 422, "INVALID_YEAR", "Year must be between 2000 and the current year", nil)
+		return
+	}
+	if len(request.AdapterIDs) == 0 {
+		for _, spec := range h.PublicSources.Specs() {
+			if spec.Available {
+				request.AdapterIDs = append(request.AdapterIDs, spec.ID)
+			}
+		}
+	}
+	if len(request.AdapterIDs) == 0 {
+		writeError(w, 422, "NO_AVAILABLE_SOURCES", "No public source adapters are available", nil)
+		return
+	}
+	imports := map[string]int64{}
+	for _, id := range request.AdapterIDs {
+		importID, err := h.PublicSources.Prepare(id)
+		if err != nil {
+			writeError(w, 422, "INVALID_ADAPTER", err.Error(), err)
+			return
+		}
+		imports[id] = importID
+	}
+	h.Jobs.Go(func(ctx context.Context) {
+		for _, id := range request.AdapterIDs {
+			if ctx.Err() != nil {
+				return
+			}
+			if err := h.PublicSources.Run(ctx, id, request.Year, imports[id]); err != nil {
+				continue
+			}
+		}
+		if p, err := h.Profiles.GetDefault(); err == nil && p != nil {
+			years, _ := h.MetricValues.AvailableYears()
+			for _, year := range years {
+				if ctx.Err() != nil {
+					return
+				}
+				_, _ = scoring.Recalculate(ctx, h.DB, p.ID, year)
+			}
+		}
+	})
+	writeJSON(w, http.StatusAccepted, map[string]any{"data": map[string]any{"imports": imports}})
 }
 
 func (h *Handler) health(w http.ResponseWriter, r *http.Request) {

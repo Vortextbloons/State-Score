@@ -9,6 +9,7 @@ import {
 	type Metric,
 	type MetricValue,
 	type Profile,
+	type PublicSourceAdapter,
 	type Scoreboard,
 	type State
 } from './types';
@@ -78,6 +79,12 @@ export const uploadCSV = (sourceId: number, file: File) => {
 	body.set('file', file);
 	return data<DataImport>('/imports', { method: 'POST', body });
 };
+export const getPublicSources = () => data<PublicSourceAdapter[]>('/public-sources');
+export const refreshPublicSources = (adapterIds: string[], year?: number) =>
+	data<{ imports: Record<string, number> }>('/public-sources/refresh', {
+		method: 'POST',
+		body: JSON.stringify({ adapterIds, year: year ?? 0 })
+	});
 export const getScores = (profileId = 0, year = 0) => {
 	const q = new URLSearchParams();
 	if (profileId) q.set('profile_id', String(profileId));
@@ -104,6 +111,8 @@ export const api = {
 	getImports,
 	getImport,
 	uploadCSV,
+	getPublicSources,
+	refreshPublicSources,
 	getScores,
 	recalculate
 };

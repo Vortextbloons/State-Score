@@ -30,6 +30,19 @@ Prefer bulk endpoints so request counts do not grow with states or metrics.
 
 Keep parsing and validation in `internal/importer`. Importers must honor cancellation, validate before committing, preserve provenance, and return row-level issues in the common result shape. Imports automatically trigger score recalculation.
 
+## Add a public source adapter
+
+Public refresh adapters live in `internal/publicsources` and implement `Adapter`:
+
+1. Return stable display metadata from `Spec()`.
+2. Return the matching `data_sources.name` from `SourceName()`.
+3. Fetch and transform official records in `Fetch(ctx, year)`.
+4. Emit normalized observations and optional source-specific quality metadata.
+5. Register the adapter in `DefaultRegistry()`.
+6. Add a fixture-backed test; unit tests must not call live public APIs.
+
+The registry automatically exposes new adapters through the API and Data workshop. The shared service supplies background-job lifecycle, atomic persistence, checksums, import history, validation, quality metadata, and score recalculation.
+
 ## Add background work
 
 Submit application-owned work through `internal/jobs.Manager`. Do not start untracked goroutines or replace the supplied context with `context.Background()`.

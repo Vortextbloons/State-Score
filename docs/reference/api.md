@@ -38,8 +38,12 @@ The [OpenAPI spec](../../spec/openapi.yaml) is incomplete and may be outdated.
 | GET | `/imports?limit=50` | List imports |
 | POST | `/imports` | Upload CSV (multipart: `source_id` int64 + `file` .csv, max 10MB). Returns 202. |
 | GET | `/imports/{importId}` | Get import with validation errors |
+| GET | `/public-sources` | List registered refresh adapters and availability |
+| POST | `/public-sources/refresh` | Queue one or more official-source refreshes |
 
 CSV columns: `state_code`, `metric_slug`, `year`, `value` (required); `source_record_id` (optional).
+
+Refresh request: `{"adapterIds":["census-college-enrollment","cdc-adult-obesity"],"year":2024}`. An empty adapter list refreshes all available adapters. The response maps adapter IDs to import IDs; progress appears in the import ledger.
 
 ## Scores
 
