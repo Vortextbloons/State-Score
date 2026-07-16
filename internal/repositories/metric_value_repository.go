@@ -19,7 +19,10 @@ func NewMetricValueRepository(db *sql.DB) *MetricValueRepository {
 
 // ListByState returns all metric values for a state, optionally filtered by year.
 func (r *MetricValueRepository) ListByState(stateID int64, year int) ([]models.MetricValue, error) {
-	query := `SELECT id, state_id, metric_id, year, value, source_record_id, import_id, created_at FROM metric_values WHERE state_id = ?`
+	query := `SELECT mv.id, mv.state_id, mv.metric_id, mv.year, mv.value, mv.source_record_id, mv.import_id, mv.created_at,
+		q.reporting_coverage, q.participating_agencies, q.population_covered, q.data_revision,
+		q.scoring_eligible, q.exclusion_reason
+		FROM metric_values mv LEFT JOIN metric_value_quality q ON q.metric_value_id=mv.id WHERE mv.state_id = ?`
 	args := []any{stateID}
 
 	if year > 0 {
@@ -39,7 +42,7 @@ func (r *MetricValueRepository) ListByState(stateID int64, year int) ([]models.M
 	for rows.Next() {
 		var mv models.MetricValue
 		var importID sql.NullInt64
-		if err := rows.Scan(&mv.ID, &mv.StateID, &mv.MetricID, &mv.Year, &mv.Value, &mv.SourceRecordID, &importID, &mv.CreatedAt); err != nil {
+		if err := scanMetricValue(rows, &mv, &importID); err != nil {
 			return nil, fmt.Errorf("scan metric value: %w", err)
 		}
 		if importID.Valid {
@@ -53,7 +56,10 @@ func (r *MetricValueRepository) ListByState(stateID int64, year int) ([]models.M
 // ListAll returns metric values for all states, optionally filtered by year.
 // It is the bulk counterpart to ListByState for rankings and exports.
 func (r *MetricValueRepository) ListAll(year int) ([]models.MetricValue, error) {
-	query := `SELECT id, state_id, metric_id, year, value, source_record_id, import_id, created_at FROM metric_values`
+	query := `SELECT mv.id, mv.state_id, mv.metric_id, mv.year, mv.value, mv.source_record_id, mv.import_id, mv.created_at,
+		q.reporting_coverage, q.participating_agencies, q.population_covered, q.data_revision,
+		q.scoring_eligible, q.exclusion_reason
+		FROM metric_values mv LEFT JOIN metric_value_quality q ON q.metric_value_id=mv.id`
 	args := []any{}
 	if year > 0 {
 		query += ` WHERE year = ?`
@@ -71,7 +77,7 @@ func (r *MetricValueRepository) ListAll(year int) ([]models.MetricValue, error) 
 	for rows.Next() {
 		var mv models.MetricValue
 		var importID sql.NullInt64
-		if err := rows.Scan(&mv.ID, &mv.StateID, &mv.MetricID, &mv.Year, &mv.Value, &mv.SourceRecordID, &importID, &mv.CreatedAt); err != nil {
+		if err := scanMetricValue(rows, &mv, &importID); err != nil {
 			return nil, fmt.Errorf("scan metric value: %w", err)
 		}
 		if importID.Valid {
@@ -84,7 +90,10 @@ func (r *MetricValueRepository) ListAll(year int) ([]models.MetricValue, error) 
 
 // ListByMetric returns all values for a metric, optionally filtered by year.
 func (r *MetricValueRepository) ListByMetric(metricID int64, year int) ([]models.MetricValue, error) {
-	query := `SELECT id, state_id, metric_id, year, value, source_record_id, import_id, created_at FROM metric_values WHERE metric_id = ?`
+	query := `SELECT mv.id, mv.state_id, mv.metric_id, mv.year, mv.value, mv.source_record_id, mv.import_id, mv.created_at,
+		q.reporting_coverage, q.participating_agencies, q.population_covered, q.data_revision,
+		q.scoring_eligible, q.exclusion_reason
+		FROM metric_values mv LEFT JOIN metric_value_quality q ON q.metric_value_id=mv.id WHERE mv.metric_id = ?`
 	args := []any{metricID}
 
 	if year > 0 {
@@ -104,7 +113,7 @@ func (r *MetricValueRepository) ListByMetric(metricID int64, year int) ([]models
 	for rows.Next() {
 		var mv models.MetricValue
 		var importID sql.NullInt64
-		if err := rows.Scan(&mv.ID, &mv.StateID, &mv.MetricID, &mv.Year, &mv.Value, &mv.SourceRecordID, &importID, &mv.CreatedAt); err != nil {
+		if err := scanMetricValue(rows, &mv, &importID); err != nil {
 			return nil, fmt.Errorf("scan metric value: %w", err)
 		}
 		if importID.Valid {
@@ -119,10 +128,15 @@ func (r *MetricValueRepository) ListByMetric(metricID int64, year int) ([]models
 func (r *MetricValueRepository) Get(stateID, metricID int64, year int) (*models.MetricValue, error) {
 	var mv models.MetricValue
 	var importID sql.NullInt64
-	err := r.db.QueryRow(
-		`SELECT id, state_id, metric_id, year, value, source_record_id, import_id, created_at FROM metric_values WHERE state_id = ? AND metric_id = ? AND year = ?`,
+	row := r.db.QueryRow(
+		`SELECT mv.id, mv.state_id, mv.metric_id, mv.year, mv.value, mv.source_record_id, mv.import_id, mv.created_at,
+		 q.reporting_coverage, q.participating_agencies, q.population_covered, q.data_revision,
+		 q.scoring_eligible, q.exclusion_reason
+		 FROM metric_values mv LEFT JOIN metric_value_quality q ON q.metric_value_id=mv.id
+		 WHERE mv.state_id = ? AND mv.metric_id = ? AND mv.year = ?`,
 		stateID, metricID, year,
-	).Scan(&mv.ID, &mv.StateID, &mv.MetricID, &mv.Year, &mv.Value, &mv.SourceRecordID, &importID, &mv.CreatedAt)
+	)
+	err := scanMetricValue(row, &mv, &importID)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -133,6 +147,34 @@ func (r *MetricValueRepository) Get(stateID, metricID int64, year int) (*models.
 		mv.ImportID = &importID.Int64
 	}
 	return &mv, nil
+}
+
+type rowScanner interface{ Scan(...any) error }
+
+func scanMetricValue(row rowScanner, mv *models.MetricValue, importID *sql.NullInt64) error {
+	var coverage sql.NullFloat64
+	var agencies, population, eligible sql.NullInt64
+	var revision, reason sql.NullString
+	err := row.Scan(&mv.ID, &mv.StateID, &mv.MetricID, &mv.Year, &mv.Value, &mv.SourceRecordID, importID, &mv.CreatedAt,
+		&coverage, &agencies, &population, &revision, &eligible, &reason)
+	if err != nil {
+		return err
+	}
+	if coverage.Valid || agencies.Valid || population.Valid || revision.Valid || eligible.Valid || reason.Valid {
+		q := &models.MetricValueQuality{ScoringEligible: !eligible.Valid || eligible.Int64 != 0, DataRevision: revision.String, ExclusionReason: reason.String}
+		if coverage.Valid {
+			q.ReportingCoverage = &coverage.Float64
+		}
+		if agencies.Valid {
+			v := int(agencies.Int64)
+			q.ParticipatingAgencies = &v
+		}
+		if population.Valid {
+			q.PopulationCovered = &population.Int64
+		}
+		mv.Quality = q
+	}
+	return nil
 }
 
 // Upsert inserts or updates a metric value.

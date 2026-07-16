@@ -113,9 +113,11 @@ func loadAsOfObservations(ctx context.Context, db *sql.DB, metricID int64, asOfY
 		SELECT mv.state_id, mv.year, mv.id, mv.value
 		FROM metric_values mv
 		JOIN imports i ON i.id = mv.import_id
+		LEFT JOIN metric_value_quality q ON q.metric_value_id = mv.id
 		WHERE mv.metric_id = ?
 		  AND mv.year <= ?
 		  AND i.status IN ('completed', 'completed_with_errors')
+		  AND COALESCE(q.scoring_eligible, 1) = 1
 		ORDER BY mv.state_id ASC, mv.year DESC, mv.id DESC`, metricID, asOfYear)
 	if err != nil {
 		return nil, err

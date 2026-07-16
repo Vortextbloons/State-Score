@@ -42,14 +42,25 @@ type Metric struct {
 
 // MetricValue represents a single data point for a state, metric, and year.
 type MetricValue struct {
-	ID             int64   `json:"id"`
-	StateID        int64   `json:"stateId"`
-	MetricID       int64   `json:"metricId"`
-	Year           int     `json:"year"`
-	Value          float64 `json:"value"`
-	SourceRecordID string  `json:"sourceRecordId,omitempty"`
-	ImportID       *int64  `json:"importId,omitempty"`
-	CreatedAt      string  `json:"createdAt"`
+	ID             int64               `json:"id"`
+	StateID        int64               `json:"stateId"`
+	MetricID       int64               `json:"metricId"`
+	Year           int                 `json:"year"`
+	Value          float64             `json:"value"`
+	SourceRecordID string              `json:"sourceRecordId,omitempty"`
+	ImportID       *int64              `json:"importId,omitempty"`
+	CreatedAt      string              `json:"createdAt"`
+	Quality        *MetricValueQuality `json:"quality,omitempty"`
+}
+
+// MetricValueQuality carries source-specific coverage and revision metadata.
+type MetricValueQuality struct {
+	ReportingCoverage     *float64 `json:"reportingCoverage,omitempty"`
+	ParticipatingAgencies *int     `json:"participatingAgencies,omitempty"`
+	PopulationCovered     *int64   `json:"populationCovered,omitempty"`
+	DataRevision          string   `json:"dataRevision,omitempty"`
+	ScoringEligible       bool     `json:"scoringEligible"`
+	ExclusionReason       string   `json:"exclusionReason,omitempty"`
 }
 
 // DataSource represents an external data source.

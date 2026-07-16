@@ -26,8 +26,8 @@ func TestRecalculateUsesAsOfYearAndActiveMetrics(t *testing.T) {
 	if err := db.QueryRow(`SELECT count(*) FROM metrics WHERE active=1`).Scan(&active); err != nil {
 		t.Fatalf("count active metrics: %v", err)
 	}
-	if active != 8 {
-		t.Fatalf("active metrics = %d, want 8", active)
+	if active != 13 {
+		t.Fatalf("active metrics = %d, want 13", active)
 	}
 
 	profile, err := repositories.NewProfileRepository(db).GetDefault()
@@ -50,12 +50,16 @@ func TestRecalculateUsesAsOfYearAndActiveMetrics(t *testing.T) {
 	if len(rows) != 50 {
 		t.Fatalf("snapshots = %d, want 50", len(rows))
 	}
+	incomplete := 0
 	for _, row := range rows {
-		if row.Snapshot.Completeness != 1 {
-			t.Fatalf("state %d completeness = %v, want 1 with only active metrics", row.Snapshot.StateID, row.Snapshot.Completeness)
+		if row.Snapshot.Completeness < 1 {
+			incomplete++
 		}
 		if len(row.Categories) != 5 {
 			t.Fatalf("state %d categories = %d, want 5", row.Snapshot.StateID, len(row.Categories))
 		}
+	}
+	if incomplete != 7 {
+		t.Fatalf("incomplete states = %d, want 7 (six FBI coverage exclusions and one suppressed CDC value)", incomplete)
 	}
 }

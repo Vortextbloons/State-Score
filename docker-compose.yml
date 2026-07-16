@@ -1,0 +1,11 @@
+services:
+  statescore:
+    build: .
+    ports:
+      - "8787:8787"
+    volumes:
+      - statescore-data:/data
+    restart: unless-stopped
+
+volumes:
+  statescore-data:

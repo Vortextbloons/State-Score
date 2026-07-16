@@ -1,0 +1,9 @@
+node_modules
+frontend/node_modules
+bin
+tmp
+.git
+.air.toml
+*.exe
+*.db
+docs

@@ -49,8 +49,13 @@ func Load() (*Config, error) {
 		openBrowser = false
 	}
 
+	host := DefaultHost
+	if raw := os.Getenv("STATESCORE_HOST"); raw != "" {
+		host = raw
+	}
+
 	return &Config{
-		Host:         DefaultHost,
+		Host:         host,
 		Port:         port,
 		DataDir:      dataDir,
 		DatabasePath: filepath.Join(dataDir, "statescore.db"),

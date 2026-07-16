@@ -108,6 +108,10 @@ This prevents:
 
 Only imports with status `completed` or `completed_with_errors` are included in the `loadAsOfObservations` SQL query. Failed or in-progress imports never feed into scoring.
 
+## Source Coverage Gating
+
+`metric_value_quality` stores observation-level coverage, participating-agency count when supplied by the source, population covered, revision, eligibility, and the exclusion reason. Property-crime observations use the minimum monthly FBI population coverage for the year and require at least 90% coverage. Ineligible observations remain visible through the API and state metric ledger but do not feed scoring.
+
 ## Data Provenance Chain
 
 Every metric value is traceable to its origin:
