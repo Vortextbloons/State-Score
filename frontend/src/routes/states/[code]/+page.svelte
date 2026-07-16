@@ -1,7 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { loadScores, fmt, formatValue, type ScoreData, type Row } from '$lib/scores';
+	import {
+		loadScores,
+		fmt,
+		formatValue,
+		formatPopulation,
+		type ScoreData,
+		type Row
+	} from '$lib/scores';
 	let data = $state<ScoreData | null>(null),
 		row = $state<Row | null>(null);
 	onMount(async () => {
@@ -17,8 +24,10 @@
 			<p class="eyebrow">{row.state.region} / {row.state.code}</p>
 			<h1>{row.state.name}</h1>
 			<p>
-				Scores are relative ranks among states as of {data.asOfYear ?? 'the latest available year'}.
-				Each category below traces to its included metrics and their data years.
+				{row.state.population ? formatPopulation(row.state.population) : 'Population unavailable'} residents
+				{row.state.populationYear ? `(July ${row.state.populationYear} estimate)` : ''}. Scores are
+				relative ranks among states as of {data.asOfYear ?? 'the latest available year'}. Each
+				category below traces to its included metrics and their data years.
 			</p>
 		</div>
 		<div class="overall">
@@ -61,7 +70,7 @@
 							>{#if v?.quality?.reportingCoverage != null}<small class="coverage"
 									>FBI coverage {v.quality.reportingCoverage.toFixed(1)}%{v.quality
 										.populationCovered != null
-										? ` / ${v.quality.populationCovered.toLocaleString()} residents covered`
+										? ` / ${formatPopulation(v.quality.populationCovered)} residents covered`
 										: ''}{v.quality.dataRevision
 										? ` / revision ${v.quality.dataRevision}`
 										: ''}</small

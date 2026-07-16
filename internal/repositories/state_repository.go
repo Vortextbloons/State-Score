@@ -19,7 +19,7 @@ func NewStateRepository(db *sql.DB) *StateRepository {
 
 // List returns all states, optionally filtered by region.
 func (r *StateRepository) List(region string) ([]models.State, error) {
-	query := `SELECT id, code, name, region, division, created_at, updated_at FROM states`
+	query := `SELECT id, code, name, region, division, population, population_year, population_source_id, created_at, updated_at FROM states`
 	args := []any{}
 
 	if region != "" {
@@ -38,7 +38,7 @@ func (r *StateRepository) List(region string) ([]models.State, error) {
 	var states []models.State
 	for rows.Next() {
 		var s models.State
-		if err := rows.Scan(&s.ID, &s.Code, &s.Name, &s.Region, &s.Division, &s.CreatedAt, &s.UpdatedAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.Code, &s.Name, &s.Region, &s.Division, &s.Population, &s.PopulationYear, &s.PopulationSourceID, &s.CreatedAt, &s.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan state: %w", err)
 		}
 		states = append(states, s)
@@ -50,9 +50,9 @@ func (r *StateRepository) List(region string) ([]models.State, error) {
 func (r *StateRepository) GetByCode(code string) (*models.State, error) {
 	var s models.State
 	err := r.db.QueryRow(
-		`SELECT id, code, name, region, division, created_at, updated_at FROM states WHERE code = ?`,
+		`SELECT id, code, name, region, division, population, population_year, population_source_id, created_at, updated_at FROM states WHERE code = ?`,
 		code,
-	).Scan(&s.ID, &s.Code, &s.Name, &s.Region, &s.Division, &s.CreatedAt, &s.UpdatedAt)
+	).Scan(&s.ID, &s.Code, &s.Name, &s.Region, &s.Division, &s.Population, &s.PopulationYear, &s.PopulationSourceID, &s.CreatedAt, &s.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -66,9 +66,9 @@ func (r *StateRepository) GetByCode(code string) (*models.State, error) {
 func (r *StateRepository) GetByID(id int64) (*models.State, error) {
 	var s models.State
 	err := r.db.QueryRow(
-		`SELECT id, code, name, region, division, created_at, updated_at FROM states WHERE id = ?`,
+		`SELECT id, code, name, region, division, population, population_year, population_source_id, created_at, updated_at FROM states WHERE id = ?`,
 		id,
-	).Scan(&s.ID, &s.Code, &s.Name, &s.Region, &s.Division, &s.CreatedAt, &s.UpdatedAt)
+	).Scan(&s.ID, &s.Code, &s.Name, &s.Region, &s.Division, &s.Population, &s.PopulationYear, &s.PopulationSourceID, &s.CreatedAt, &s.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}

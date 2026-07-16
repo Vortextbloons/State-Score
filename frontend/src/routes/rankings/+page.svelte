@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { loadScores, fmt, type ScoreData } from '$lib/scores';
+	import { loadScores, fmt, formatPopulation, type ScoreData } from '$lib/scores';
 	import ScoreStripe from '$lib/ScoreStripe.svelte';
 	let data = $state<ScoreData | null>(null),
 		search = $state(''),
@@ -33,13 +33,23 @@
 	}
 	function exportCSV() {
 		if (!data) return;
-		const head = ['Rank', 'State', 'Code', 'Overall', ...data.categories.map((c) => c.name)];
+		const head = [
+			'Rank',
+			'State',
+			'Code',
+			'Population',
+			'Population year',
+			'Overall',
+			...data.categories.map((c) => c.name)
+		];
 		const lines = [
 			head,
 			...rows.map((r, i) => [
 				i + 1,
 				r.state.name,
 				r.state.code,
+				r.state.population ?? '',
+				r.state.populationYear ?? '',
 				fmt(r.overall),
 				...data!.categories.map((c) => fmt(r.categories[c.id]))
 			])
@@ -78,12 +88,13 @@
 	</div>
 	<div class="field">
 		<label for="region">Region</label><select id="region" bind:value={region}
-			><option value="">All regions</option>{#each regions as r}<option>{r}</option>{/each}</select
+			><option value="">All regions</option>{#each regions as r (r)}<option>{r}</option
+				>{/each}</select
 		>
 	</div>
 	<div class="field">
 		<label for="sort">Measure</label><select id="sort" bind:value={sort}
-			><option value="overall">Overall</option>{#each data?.categories ?? [] as c}<option
+			><option value="overall">Overall</option>{#each data?.categories ?? [] as c (c.id)}<option
 					value={c.id}>{c.name}</option
 				>{/each}</select
 		>
@@ -96,23 +107,28 @@
 	{#if !data}<div class="empty">Loading rankings…</div>{:else}<table>
 			<thead
 				><tr
-					><th>Rank</th><th>State</th><th>Overall</th>{#each data.categories as c}<th>{c.name}</th
-						>{/each}<th>Compare</th></tr
+					><th>Rank</th><th>State</th><th>Population</th><th>Overall</th
+					>{#each data.categories as c (c.id)}<th>{c.name}</th>{/each}<th>Compare</th></tr
 				></thead
 			><tbody
-				>{#each rows as row, i}<tr
+				>{#each rows as row, i (row.state.id)}<tr
 						><td class="score">{i + 1}</td><td
 							><a class="state" href={`/states/${row.state.code}`}
 								><strong>{row.state.name}</strong><small
 									>{row.state.code} · {row.state.region}</small
 								><ScoreStripe scores={data.categories.map((c) => row.categories[c.id])} /></a
 							></td
+						><td class="population"
+							><strong>{formatPopulation(row.state.population)}</strong><small
+								>{row.state.populationYear ? `July ${row.state.populationYear}` : ''}</small
+							></td
 						><td class="score"
 							>{fmt(row.overall)}
 							{#if row.completeness < 1}<span
 									title={`${Math.round(row.completeness * 100)}% complete`}>◌</span
 								>{/if}</td
-						>{#each data.categories as c}<td class="score muted">{fmt(row.categories[c.id])}</td
+						>{#each data.categories as c (c.id)}<td class="score muted"
+								>{fmt(row.categories[c.id])}</td
 							>{/each}<td
 							><button
 								class="pick"
@@ -148,12 +164,17 @@
 		min-width: 180px;
 		text-decoration: none;
 	}
+	.population strong,
+	.population small {
+		display: block;
+		white-space: nowrap;
+	}
+	.population small {
+		color: var(--muted);
+		font-family: var(--font-data);
+	}
 	.state small {
 		color: var(--muted);
-	}
-	.state .stripe {
-		margin-top: 0.4rem;
-		max-width: 170px;
 	}
 	.pick {
 		width: 32px;

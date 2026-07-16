@@ -5,7 +5,16 @@ export type AppStatus = {
 	activeImports: number;
 	startedAt?: string;
 };
-export type State = { id: number; code: string; name: string; region?: string; division?: string };
+export type State = {
+	id: number;
+	code: string;
+	name: string;
+	region?: string;
+	division?: string;
+	population?: number;
+	populationYear?: number;
+	populationSourceId?: number;
+};
 export type Category = {
 	id: number;
 	slug: string;

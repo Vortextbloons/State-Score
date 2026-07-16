@@ -14,6 +14,8 @@ Migration `000010_add_priority_metrics.sql` added five priority metrics (one per
 
 Migration `000011_add_foundational_metrics.sql` adds labor-force participation, a four-assessment NAEP achievement composite, uninsured rate, age-adjusted homicide mortality, and owner housing-cost burden with complete official 2024 observations. Catalog and methodology pages render these active metrics without metric-specific frontend code.
 
+Migration `000012_add_state_population.sql` adds Census Vintage 2025 population, estimate year, and source provenance to every state. The state API exposes these fields, and rankings, CSV exports, comparisons, and profiles display them as non-scoring reference data.
+
 ## Connection
 
 In development, the Vite dev server proxies `/api` requests to `http://127.0.0.1:8080`. In production, the Go server embeds the static frontend build and serves it directly.

@@ -14,8 +14,8 @@ The [OpenAPI spec](../../spec/openapi.yaml) is incomplete and may be outdated.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/states?region=` | List states, optional region filter |
-| GET | `/states/{code}` | Get state by 2-letter code (e.g., CA) |
+| GET | `/states?region=` | List states with population estimate and year, optional region filter |
+| GET | `/states/{code}` | Get state by 2-letter code (e.g., CA), including population estimate and year |
 | GET | `/regions` | List all regions |
 | GET | `/categories` | List scoring categories |
 | GET | `/metrics?category_id=` | List metrics, optional category filter |

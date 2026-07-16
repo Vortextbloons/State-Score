@@ -37,8 +37,8 @@ func TestOpenAndMigrate(t *testing.T) {
 	if err := db.QueryRow(`SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1`).Scan(&latest); err != nil {
 		t.Fatalf("latest migration: %v", err)
 	}
-	if latest != "000011_add_foundational_metrics" {
-		t.Fatalf("latest version = %q, want 000011_add_foundational_metrics", latest)
+	if latest != "000012_add_state_population" {
+		t.Fatalf("latest version = %q, want 000012_add_state_population", latest)
 	}
 
 	tables := []string{
@@ -152,5 +152,18 @@ func TestBundledMetricData(t *testing.T) {
 	}
 	if name != "Regional price parity" {
 		t.Fatalf("cost-of-living-index name = %q, want Regional price parity", name)
+	}
+	var population int64
+	var populationYear int
+	var sourceID int64
+	if err := db.QueryRow(`SELECT population,population_year,population_source_id FROM states WHERE code='CA'`).Scan(&population, &populationYear, &sourceID); err != nil {
+		t.Fatalf("California population: %v", err)
+	}
+	if population != 39355309 || populationYear != 2025 || sourceID == 0 {
+		t.Fatalf("California population = %d/%d/source %d", population, populationYear, sourceID)
+	}
+	var populated int
+	if err := db.QueryRow(`SELECT count(*) FROM states WHERE population IS NOT NULL AND population_year=2025`).Scan(&populated); err != nil || populated != 50 {
+		t.Fatalf("populated states = %d, err=%v; want 50", populated, err)
 	}
 }

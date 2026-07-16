@@ -31,6 +31,9 @@ A US state or territory.
 | `name` | `string` | Full name |
 | `region` | `string` | Census region: `South`, `West`, `Northeast`, `Midwest` |
 | `division` | `string` | Census division (e.g., `Pacific`, `Mountain`) |
+| `population` | `int64` | Latest resident population estimate |
+| `populationYear` | `int` | July 1 estimate year |
+| `populationSourceId` | `int64` | FK to the corresponding Census data source |
 | `createdAt` / `updatedAt` | `string` | Timestamps |
 
 ### Category

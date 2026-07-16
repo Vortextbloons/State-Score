@@ -4,13 +4,16 @@ import "time"
 
 // State represents a US state.
 type State struct {
-	ID        int64  `json:"id"`
-	Code      string `json:"code"`
-	Name      string `json:"name"`
-	Region    string `json:"region,omitempty"`
-	Division  string `json:"division,omitempty"`
-	CreatedAt string `json:"createdAt"`
-	UpdatedAt string `json:"updatedAt"`
+	ID                 int64  `json:"id"`
+	Code               string `json:"code"`
+	Name               string `json:"name"`
+	Region             string `json:"region,omitempty"`
+	Division           string `json:"division,omitempty"`
+	Population         int64  `json:"population,omitempty"`
+	PopulationYear     int    `json:"populationYear,omitempty"`
+	PopulationSourceID int64  `json:"populationSourceId,omitempty"`
+	CreatedAt          string `json:"createdAt"`
+	UpdatedAt          string `json:"updatedAt"`
 }
 
 // Category represents a scoring category.

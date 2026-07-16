@@ -2,6 +2,8 @@
 
 This is the canonical directory of the public datasets behind StateScore's active metrics. Source metadata is also stored in `data_sources`, and each observation links through `metric_values.import_id` to its import record.
 
+State reference data also includes the Census Bureau's Vintage 2025 resident population estimate for July 1, 2025. Population is descriptive and does not participate in scoring. Values come from [`NST-EST2025-ALLDATA.csv`](https://www2.census.gov/programs-surveys/popest/datasets/2020-2025/state/totals/NST-EST2025-ALLDATA.csv); each state records the estimate, year, and source ID.
+
 ## Source Catalog
 
 | Category | Metric | Year | Publisher and dataset | Where to find it |
@@ -163,5 +165,6 @@ The reproducible source metadata, import checksums, and bundled values live in t
 - `000009_seed_economy_education_data.sql`
 - `000010_add_priority_metrics.sql`
 - `000011_add_foundational_metrics.sql`
+- `000012_add_state_population.sql`
 
 When refreshing a source, add a new migration or use the managed import workflow; do not rewrite an already-applied migration.

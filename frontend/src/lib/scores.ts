@@ -107,6 +107,14 @@ export function fmt(v: number | null, digits = 1) {
 	return v == null ? '—' : v.toFixed(digits);
 }
 
+/** Format a population for compact display while keeping one useful decimal. */
+export function formatPopulation(value?: number): string {
+	if (value == null) return '—';
+	if (value >= 1_000_000) return `${Number((value / 1_000_000).toFixed(1))}M`;
+	if (value >= 1_000) return `${Math.round(value / 1_000)}k`;
+	return value.toString();
+}
+
 export function formatValue(value: number | null, unit?: string): string {
 	if (value == null) return '—';
 	const formatted = value.toLocaleString();

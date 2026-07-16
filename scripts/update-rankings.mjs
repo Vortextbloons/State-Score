@@ -13,6 +13,13 @@ const BASE = process.argv[2] || 'http://127.0.0.1:8080';
 const API = `${BASE}/api/v1`;
 const README = join(dirname(fileURLToPath(import.meta.url)), '..', 'README.md');
 
+function formatPopulation(value) {
+  if (value == null) return '—';
+  if (value >= 1_000_000) return `${Number((value / 1_000_000).toFixed(1))}M`;
+  if (value >= 1_000) return `${Math.round(value / 1_000)}k`;
+  return String(value);
+}
+
 async function fetchJSON(path) {
   let res;
   try {
@@ -43,14 +50,15 @@ async function main() {
     .sort((a, b) => b.score.overallScore - a.score.overallScore);
 
   const lines = [
-    `| Rank | State | Code | Score | Completeness |`,
-    `|------|-------|------|-------|--------------|`,
+    `| Rank | State | Code | Population | Score | Completeness |`,
+    `|------|-------|------|-----------:|-------|--------------|`,
   ];
   for (let i = 0; i < ranked.length; i++) {
     const r = ranked[i];
     const score = r.score.overallScore.toFixed(1);
     const pct = (r.score.completeness * 100).toFixed(0);
-    lines.push(`| ${i + 1} | ${r.state.name} | ${r.state.code} | ${score} | ${pct}% |`);
+    const population = formatPopulation(r.state.population);
+    lines.push(`| ${i + 1} | ${r.state.name} | ${r.state.code} | ${population} | ${score} | ${pct}% |`);
   }
 
   const table = lines.join('\n');

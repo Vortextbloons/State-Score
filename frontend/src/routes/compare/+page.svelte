@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { loadScores, fmt, formatValue, type ScoreData } from '$lib/scores';
+	import { loadScores, fmt, formatValue, formatPopulation, type ScoreData } from '$lib/scores';
 	let data = $state<ScoreData | null>(null),
 		selected = $state<string[]>([]),
 		copyLabel = $state('Copy summary');
@@ -37,28 +37,28 @@
 </div>
 {#if data}<section class="chooser card">
 		<div class="chips">
-			{#each selected as code}<button
+			{#each selected as code (code)}<button
 					onclick={() => (selected = selected.filter((x) => x !== code))}
 					>{data.states.find((s) => s.code === code)?.name} <span>×</span></button
 				>{/each}
 		</div>
 		{#if selected.length < 5}<select onchange={add} value=""
 				><option value="">Add a state…</option
-				>{#each data.states.filter((s) => !selected.includes(s.code)) as s}<option value={s.code}
-						>{s.name}</option
+				>{#each data.states.filter((s) => !selected.includes(s.code)) as s (s.id)}<option
+						value={s.code}>{s.name}</option
 					>{/each}</select
 			>{/if}
 	</section>
 	<section class="scoreboard card">
 		<div class="grid head">
-			<span>Overall</span>{#each rows as row}<div>
+			<span>Overall</span>{#each rows as row (row.state.id)}<div>
 					<strong>{row.state.code}</strong><b class="score">{fmt(row.overall)}</b><small
-						>#{data.rows.indexOf(row) + 1}</small
+						>#{data.rows.indexOf(row) + 1} · {formatPopulation(row.state.population)} residents</small
 					>
 				</div>{/each}
 		</div>
-		{#each data.categories as c}<div class="grid category">
-				<strong>{c.name}</strong>{#each rows as row}<div class="bar">
+		{#each data.categories as c (c.id)}<div class="grid category">
+				<strong>{c.name}</strong>{#each rows as row (row.state.id)}<div class="bar">
 						<i style:width={`${row.categories[c.id] ?? 0}%`}></i><span class="score"
 							>{fmt(row.categories[c.id])}</span
 						>
@@ -68,13 +68,14 @@
 	<section class="card metrics">
 		<p class="eyebrow">Raw measures</p>
 		<h2>Metric-by-metric</h2>
-		{#each data.metrics as m}<div class="grid metric">
+		{#each data.metrics as m (m.id)}<div class="grid metric">
 				<span
 					><strong>{m.name}</strong><small
 						>{m.higherIsBetter ? 'Higher is better ↑' : 'Lower is better ↓'}</small
 					></span
-				>{#each rows as row}{@const v = row.values.find((x) => x.metricId === m.id)}<span
-						class="score"
+				>{#each rows as row (row.state.id)}{@const v = row.values.find(
+						(x) => x.metricId === m.id
+					)}<span class="score"
 						>{formatValue(v?.value ?? null, m.unit)}<small>{v?.year ?? 'Missing'}</small></span
 					>{/each}
 			</div>{/each}
