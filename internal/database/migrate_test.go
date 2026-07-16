@@ -37,8 +37,8 @@ func TestOpenAndMigrate(t *testing.T) {
 	if err := db.QueryRow(`SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1`).Scan(&latest); err != nil {
 		t.Fatalf("latest migration: %v", err)
 	}
-	if latest != "000010_add_priority_metrics" {
-		t.Fatalf("latest version = %q, want 000010_add_priority_metrics", latest)
+	if latest != "000011_add_foundational_metrics" {
+		t.Fatalf("latest version = %q, want 000011_add_foundational_metrics", latest)
 	}
 
 	tables := []string{
@@ -97,6 +97,11 @@ func TestBundledMetricData(t *testing.T) {
 		{slug: "property-crime-rate", year: 2024, want: 50},
 		{slug: "young-adult-college-enrollment", year: 2024, want: 50},
 		{slug: "renter-housing-cost-burden", year: 2024, want: 50},
+		{slug: "labor-force-participation-rate", year: 2024, want: 50},
+		{slug: "naep-achievement-composite", year: 2024, want: 50},
+		{slug: "uninsured-rate", year: 2024, want: 50},
+		{slug: "age-adjusted-homicide-death-rate", year: 2024, want: 50},
+		{slug: "owner-housing-cost-burden", year: 2024, want: 50},
 	} {
 		var count int
 		err := db.QueryRow(`SELECT count(*) FROM metric_values mv JOIN metrics m ON m.id=mv.metric_id WHERE m.slug=? AND mv.year=?`, metric.slug, metric.year).Scan(&count)
@@ -124,7 +129,6 @@ func TestBundledMetricData(t *testing.T) {
 	}
 
 	for _, slug := range []string{
-		"uninsured-rate",
 		"median-rent",
 	} {
 		var active int

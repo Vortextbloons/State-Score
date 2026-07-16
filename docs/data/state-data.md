@@ -219,23 +219,28 @@ Category breakdown for a snapshot.
 
 ## Currently Active Metrics
 
-After migration `000010_add_priority_metrics`, 13 metrics across all 5 categories are active:
+After migration `000011_add_foundational_metrics`, 18 metrics across all 5 categories are active:
 
 | Category | Metric Slug | Unit | Direction | Normalization |
 |----------|-------------|------|-----------|---------------|
 | Economy | `unemployment-rate` | Percent | lowerIsBetter | percentile |
 | Economy | `median-household-income` | Dollars | higherIsBetter | percentile |
 | Economy | `annual-employment-growth` | Percent | higherIsBetter | percentile |
+| Economy | `labor-force-participation-rate` | Percent | higherIsBetter | percentile |
 | Education | `high-school-graduation-rate` | Percent | higherIsBetter | percentile |
 | Education | `bachelors-degree-attainment` | Percent | higherIsBetter | percentile |
 | Education | `young-adult-college-enrollment` | Percent | higherIsBetter | percentile |
+| Education | `naep-achievement-composite` | Scale score | higherIsBetter | percentile |
 | Health | `life-expectancy` | Years | higherIsBetter | percentile |
 | Health | `adult-obesity-prevalence` | Percent | lowerIsBetter | percentile |
+| Health | `uninsured-rate` | Percent | lowerIsBetter | percentile |
 | Safety | `violent-crime-rate` | Per 100k | lowerIsBetter | percentile |
 | Safety | `traffic-fatalities` | Per 100k | lowerIsBetter | percentile |
 | Safety | `property-crime-rate` | Per 100k | lowerIsBetter | percentile |
+| Safety | `age-adjusted-homicide-death-rate` | Per 100k | lowerIsBetter | percentile |
 | Affordability | `cost-of-living-index` | Index (US=100) | lowerIsBetter | percentile |
 | Affordability | `renter-housing-cost-burden` | Percent | lowerIsBetter | percentile |
+| Affordability | `owner-housing-cost-burden` | Percent | lowerIsBetter | percentile |
 
 ## Inactive Metrics (No Data)
 
@@ -243,5 +248,4 @@ These metrics are defined but deactivated until data is imported:
 
 | Metric Slug | Category | Unit | Direction |
 |-------------|----------|------|-----------|
-| `uninsured-rate` | Health | Percent | lowerIsBetter |
 | `median-rent` | Affordability | Dollars | lowerIsBetter |

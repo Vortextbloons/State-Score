@@ -26,8 +26,8 @@ func TestRecalculateUsesAsOfYearAndActiveMetrics(t *testing.T) {
 	if err := db.QueryRow(`SELECT count(*) FROM metrics WHERE active=1`).Scan(&active); err != nil {
 		t.Fatalf("count active metrics: %v", err)
 	}
-	if active != 13 {
-		t.Fatalf("active metrics = %d, want 13", active)
+	if active != 18 {
+		t.Fatalf("active metrics = %d, want 18", active)
 	}
 
 	profile, err := repositories.NewProfileRepository(db).GetDefault()
